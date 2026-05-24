@@ -221,8 +221,15 @@
 <body>
 
   <div id="login-screen">
-    <div class="modal-box">
+    <div class="modal-box" id="mode-selection">
       <h1 style="color: #e67e22; margin-top:0;">LUDO KING GAS</h1>
+      <button class="btn" onclick="showOnlineSetup()">PLAY ONLINE</button>
+      <button class="btn" style="background:#27ae60" onclick="showLocalSetup('local')">PASS & PLAY</button>
+      <button class="btn" style="background:#2980b9" onclick="showLocalSetup('ai')">PLAY COMPUTER</button>
+    </div>
+
+    <div class="modal-box hidden" id="online-setup">
+      <h2 style="color: #e67e22;">PLAY ONLINE</h2>
       <input type="text" id="playerName" placeholder="Player Name">
       <select id="playerColor" style="width:100%; padding:12px; margin:10px 0; border-radius:8px;">
         <option value="red">RED</option>
@@ -231,7 +238,31 @@
         <option value="blue">BLUE</option>
       </select>
       <input type="text" id="gameIdInput" placeholder="Room Code (empty to create)">
-      <button class="btn" onclick="initGame()">PLAY NOW</button>
+      <button class="btn" onclick="initOnlineGame()">START ONLINE</button>
+      <button class="btn" style="background:#95a5a6; margin-top:10px;" onclick="backToModes()">BACK</button>
+    </div>
+
+    <div class="modal-box hidden" id="local-setup">
+      <h2 id="local-setup-title">LOCAL SETUP</h2>
+      <div id="local-players-config">
+         <p>Select Players:</p>
+         <div style="display:flex; justify-content:center; gap:10px; margin:10px 0;">
+           <button class="btn" style="width:auto; min-width:60px; margin:0;" onclick="setLocalPlayerCount(2)">2</button>
+           <button class="btn" style="width:auto; min-width:60px; margin:0;" onclick="setLocalPlayerCount(3)">3</button>
+           <button class="btn" style="width:auto; min-width:60px; margin:0;" onclick="setLocalPlayerCount(4)">4</button>
+         </div>
+      </div>
+      <div id="ai-color-choice" class="hidden">
+         <p>Pick Your Color:</p>
+         <select id="aiPlayerColor" style="width:100%; padding:12px; margin:10px 0; border-radius:8px;">
+           <option value="red">RED</option>
+           <option value="green">GREEN</option>
+           <option value="yellow">YELLOW</option>
+           <option value="blue">BLUE</option>
+         </select>
+      </div>
+      <button class="btn" onclick="initLocalGame()">START GAME</button>
+      <button class="btn" style="background:#95a5a6; margin-top:10px;" onclick="backToModes()">BACK</button>
     </div>
   </div>
 
@@ -282,8 +313,11 @@
     </div>
   </div>
 
-  <div style="margin-top: 20px; font-weight: bold; background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 20px;">
-    ROOM: <span id="room-code-display">----</span>
+  <div style="margin-top: 20px; display: flex; gap: 20px; align-items: center;">
+    <div style="font-weight: bold; background: rgba(0,0,0,0.3); padding: 5px 15px; border-radius: 20px;">
+      ROOM: <span id="room-code-display">----</span>
+    </div>
+    <button class="btn" style="width:auto; padding: 5px 15px; background:#c0392b; margin:0;" onclick="quitToMenu()">QUIT TO MENU</button>
   </div>
 
   <script>
@@ -291,9 +325,11 @@
     let myColor = null;
     let myName = null;
     let gameState = null;
+    let gameMode = 'online'; // 'online', 'local', 'ai'
     let pollRetryCount = 0;
     let backoffDelay = 1000;
     let pollTimer = null;
+    let localPlayerCount = 2;
 
     const COLORS = ['red', 'green', 'yellow', 'blue'];
     const STAR_INDICES = [8, 21, 34, 47, 1, 14, 27, 40]; // Logical Safe + Starts
@@ -396,17 +432,298 @@
       return html;
     }
 
-    function initGame() {
+    function backToModes() {
+      document.getElementById('mode-selection').classList.remove('hidden');
+      document.getElementById('online-setup').classList.add('hidden');
+      document.getElementById('local-setup').classList.add('hidden');
+    }
+
+    function showOnlineSetup() {
+      gameMode = 'online';
+      document.getElementById('mode-selection').classList.add('hidden');
+      document.getElementById('online-setup').classList.remove('hidden');
+    }
+
+    function showLocalSetup(mode) {
+      gameMode = mode;
+      document.getElementById('mode-selection').classList.add('hidden');
+      document.getElementById('local-setup').classList.remove('hidden');
+      document.getElementById('local-setup-title').innerText = mode === 'ai' ? 'VS COMPUTER' : 'PASS & PLAY';
+      document.getElementById('local-players-config').classList.toggle('hidden', mode === 'ai');
+      document.getElementById('ai-color-choice').classList.toggle('hidden', mode !== 'ai');
+    }
+
+    function setLocalPlayerCount(n) {
+      localPlayerCount = n;
+      const btns = document.querySelectorAll('#local-players-config .btn');
+      btns.forEach((b) => {
+        if (b.innerText.length === 1) b.style.opacity = (parseInt(b.innerText) === n) ? "1" : "0.5";
+      });
+    }
+
+    function quitToMenu() {
+      if (!confirm("Are you sure you want to quit?")) return;
+      if (pollTimer) clearTimeout(pollTimer);
+      currentGameId = null;
+      gameState = null;
+      document.getElementById('login-screen').classList.remove('hidden');
+      backToModes();
+    }
+
+    function initOnlineGame() {
       myName = document.getElementById('playerName').value;
       myColor = document.getElementById('playerColor').value;
       const codeInput = document.getElementById('gameIdInput').value.toUpperCase();
       if (!myName) return alert("Enter name");
       
-      if (codeInput) {
-        google.script.run.withSuccessHandler(onGameJoined).withFailureHandler(onErr).joinGame(codeInput, myName, myColor);
+      google.script.run
+        .withSuccessHandler(onGameJoined)
+        .withFailureHandler(onErr)
+        [codeInput ? 'joinGame' : 'createGame'](codeInput || myName, myName, myColor);
+    }
+
+    function initLocalGame() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('room-code-display').innerText = gameMode.toUpperCase();
+      
+      const players = { red: null, green: null, yellow: null, blue: null };
+      if (gameMode === 'local') {
+        for (let i = 0; i < localPlayerCount; i++) players[COLORS[i]] = `Player ${i+1}`;
+        myColor = 'all'; // Local player controls all
       } else {
-        google.script.run.withSuccessHandler(onGameJoined).withFailureHandler(onErr).createGame(myName, myColor);
+        myColor = document.getElementById('aiPlayerColor').value;
+        players[myColor] = "You";
+        COLORS.forEach(c => { if(c !== myColor) players[c] = "Bot " + c.toUpperCase(); });
       }
+
+      gameState = {
+        gameId: 'LOCAL',
+        players: players,
+        currentTurn: 'red',
+        dice: { value: null, hasRolled: false },
+        pieces: {
+          red: [-1, -1, -1, -1],
+          green: [-1, -1, -1, -1],
+          yellow: [-1, -1, -1, -1],
+          blue: [-1, -1, -1, -1]
+        },
+        consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 },
+        status: 'playing',
+        lastUpdate: Date.now()
+      };
+      
+      updateUI(gameState);
+      checkAITurn();
+    }
+
+    function onGameJoined(state) {
+      if (!state) return alert("Failed to join");
+      currentGameId = state.gameId;
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('room-code-display').innerText = currentGameId;
+      updateUI(state);
+      startPolling();
+    }
+
+    function onErr(e) { alert(e.message); }
+
+    function startPolling() {
+      if (gameMode !== 'online') return;
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(poll, backoffDelay);
+    }
+
+    function poll() {
+      if (!currentGameId || gameMode !== 'online') return;
+      google.script.run
+        .withSuccessHandler(state => {
+          pollRetryCount = 0;
+          backoffDelay = 1000;
+          document.getElementById('reconnect-modal').classList.add('hidden');
+          updateUI(state);
+          startPolling();
+        })
+        .withFailureHandler(err => {
+          pollRetryCount++;
+          backoffDelay = Math.min(backoffDelay * 2, 5000);
+          document.getElementById('reconnect-modal').classList.remove('hidden');
+          startPolling();
+        })
+        .getGameState(currentGameId);
+    }
+
+    function rollDice() {
+      const isMyTurn = (gameMode === 'online' && gameState.currentTurn === myColor) || 
+                       (gameMode === 'local') || 
+                       (gameMode === 'ai' && gameState.currentTurn === myColor);
+
+      if (!isMyTurn || gameState.dice.hasRolled) return;
+
+      const diceEl = document.getElementById('dice-main');
+      if (diceEl) diceEl.classList.add('rolling');
+
+      setTimeout(() => {
+        if (gameMode === 'online') {
+          google.script.run.withSuccessHandler(updateUI).withFailureHandler(onErr).rollDice(currentGameId, myColor);
+        } else {
+          executeLocalRoll(gameState.currentTurn);
+        }
+      }, 500);
+    }
+
+    function movePiece(index) {
+      if (gameMode === 'online') {
+        google.script.run.withSuccessHandler(updateUI).withFailureHandler(onErr).movePiece(currentGameId, myColor, index);
+      } else {
+        executeLocalMove(gameState.currentTurn, index);
+      }
+    }
+
+    /** LOCAL STATE MACHINE **/
+    function executeLocalRoll(color) {
+      const roll = Math.floor(Math.random() * 6) + 1;
+      
+      if (roll === 6) gameState.consecutiveSixes[color]++;
+      else gameState.consecutiveSixes[color] = 0;
+
+      if (gameState.consecutiveSixes[color] === 3) {
+        gameState.consecutiveSixes[color] = 0;
+        gameState.dice.hasRolled = false;
+        gameState.dice.value = null;
+        gameState.currentTurn = getNextLocalPlayer();
+      } else {
+        gameState.dice.value = roll;
+        gameState.dice.hasRolled = true;
+        if (!hasLegalMovesLocal(color, roll)) {
+          setTimeout(() => {
+            gameState.dice.hasRolled = false;
+            gameState.dice.value = null;
+            gameState.currentTurn = getNextLocalPlayer();
+            updateUI(gameState);
+            checkAITurn();
+          }, 1000);
+        }
+      }
+      updateUI(gameState);
+      checkAITurn();
+    }
+
+    function executeLocalMove(color, index) {
+      const roll = gameState.dice.value;
+      const currentPos = gameState.pieces[color][index];
+      let nextPos = currentPos;
+
+      if (currentPos === -1) nextPos = 0;
+      else nextPos = currentPos + roll;
+
+      // Capture logic
+      if (nextPos >= 0 && nextPos <= 51) {
+        const globalIdx = getGlobalIndex(color, nextPos);
+        const safeSquares = [1, 9, 14, 22, 27, 35, 40, 48];
+        if (!safeSquares.includes(globalIdx)) {
+          COLORS.forEach(c => {
+            if (c === color) return;
+            gameState.pieces[c] = gameState.pieces[c].map(pos => {
+              if (pos >= 0 && pos <= 51 && getGlobalIndex(c, pos) === globalIdx) return -1;
+              return pos;
+            });
+          });
+        }
+      }
+
+      gameState.pieces[color][index] = nextPos;
+      
+      const won = gameState.pieces[color].every(p => p === 57);
+      if (won) {
+        alert(gameState.players[color] + " WINS!");
+        quitToMenu();
+        return;
+      }
+
+      if (roll !== 6) gameState.currentTurn = getNextLocalPlayer();
+      gameState.dice.hasRolled = false;
+      gameState.dice.value = null;
+      updateUI(gameState);
+      checkAITurn();
+    }
+
+    function getNextLocalPlayer() {
+      const idx = COLORS.indexOf(gameState.currentTurn);
+      for (let i = 1; i < 4; i++) {
+        const next = COLORS[(idx + i) % 4];
+        if (gameState.players[next]) return next;
+      }
+      return gameState.currentTurn;
+    }
+
+    function hasLegalMovesLocal(color, roll) {
+      return gameState.pieces[color].some(pos => {
+        if (pos === -1) return roll === 6;
+        if (pos === 57) return false;
+        return (pos + roll) <= 57;
+      });
+    }
+
+    /** AI LOGIC **/
+    function checkAITurn() {
+      if (gameMode !== 'ai' || gameState.status !== 'playing') return;
+      if (gameState.currentTurn !== myColor) {
+        setTimeout(executeAITurn, 1000);
+      }
+    }
+
+    function executeAITurn() {
+      if (gameMode !== 'ai' || gameState.currentTurn === myColor || gameState.status !== 'playing') return;
+      
+      const color = gameState.currentTurn;
+      
+      if (!gameState.dice.hasRolled) {
+        executeLocalRoll(color);
+      } else {
+        const roll = gameState.dice.value;
+        const legalIndices = [];
+        gameState.pieces[color].forEach((pos, i) => {
+          if (pos === -1 && roll === 6) legalIndices.push(i);
+          else if (pos >= 0 && pos < 57 && (pos + roll) <= 57) legalIndices.push(i);
+        });
+
+        if (legalIndices.length > 0) {
+          // Heuristic Engine
+          let bestIdx = legalIndices[0];
+          let maxScore = -1000;
+
+          legalIndices.forEach(idx => {
+            let score = 0;
+            const pos = gameState.pieces[color][idx];
+            const nextPos = (pos === -1) ? 0 : pos + roll;
+
+            // Kill priority
+            if (nextPos >= 0 && nextPos <= 51) {
+              const globalIdx = getGlobalIndex(color, nextPos);
+              COLORS.forEach(c => {
+                if (c !== color && gameState.pieces[c].some(p => p >= 0 && p <= 51 && getGlobalIndex(c, p) === globalIdx)) {
+                   score += 100;
+                }
+              });
+            }
+
+            if (nextPos === 57) score += 80; // Finish
+            if (pos === -1 && roll === 6) score += 60; // Spawn
+            score += nextPos; // Advance
+
+            if (score > maxScore) {
+              maxScore = score;
+              bestIdx = idx;
+            }
+          });
+
+          setTimeout(() => executeLocalMove(color, bestIdx), 800);
+        }
+      }
+    }
+
+    function initGame() {
+      // Logic moved to initOnlineGame and initLocalGame
     }
 
     function onGameJoined(state) {

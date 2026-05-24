@@ -11,44 +11,43 @@
       --board-bg: #ffffff;
       --grid-border: rgba(0,0,0,0.1);
       --text-primary: #2c3e50;
-      --hud-bg: rgba(255, 255, 255, 0.8);
+      --hud-bg: rgba(255, 255, 255, 0.9);
       --glass-border: rgba(255, 255, 255, 0.4);
-      --neon-glow: transparent;
-      
-      --red-grad: linear-gradient(145deg, #ff4d4d, #b30000);
-      --green-grad: linear-gradient(145deg, #4dff4d, #008000);
-      --yellow-grad: linear-gradient(145deg, #ffff4d, #ccbb00);
-      --blue-grad: linear-gradient(145deg, #4d94ff, #0044cc);
       
       --red-solid: #e74c3c;
       --green-solid: #2ecc71;
       --yellow-solid: #f1c40f;
       --blue-solid: #3498db;
       
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      --red-grad: #e74c3c;
+      --green-grad: #2ecc71;
+      --yellow-grad: #f1c40f;
+      --blue-grad: #3498db;
+      
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       --star-fill: rgba(0,0,0,0.1);
     }
 
     body[data-theme="dark"] {
-      --bg-main: #0a0a0a;
-      --board-bg: #121212;
+      --bg-main: #121212;
+      --board-bg: #1e1e1e;
       --grid-border: #333333;
-      --text-primary: #e0e0e0;
-      --hud-bg: #1a1a1a;
-      --glass-border: rgba(255, 255, 255, 0.05);
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-      --star-fill: rgba(255,255,255,0.2);
+      --text-primary: #ffffff;
+      --hud-bg: #252525;
+      --glass-border: #444444;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      --star-fill: rgba(255,255,255,0.1);
       
-      --red-grad: #1a0a0a; /* Matte Finish */
-      --green-grad: #0a1a0a;
-      --yellow-grad: #1a1a0a;
-      --blue-grad: #0a0a1a;
+      --red-grad: #c0392b;
+      --green-grad: #27ae60;
+      --yellow-grad: #d4ac0d;
+      --blue-grad: #2980b9;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
     
     body, .hud, .modal-box, .cell, #board-container, #footer-controls { 
-      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, background 0.3s ease; 
+      transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease; 
     }
 
     body { 
@@ -73,124 +72,119 @@
 
     .hud {
       background: var(--hud-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-      border-radius: 20px; padding: 15px; border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 15px; border: 1px solid var(--glass-border);
       display: flex; flex-direction: column; align-items: center;
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 130px; box-shadow: var(--shadow);
     }
-    .hud.active { transform: scale(1.05); border-color: white; box-shadow: 0 0 25px rgba(255,255,255,0.2); }
+    .hud.active { transform: scale(1.05); border-color: var(--text-primary); }
 
     .avatar {
-      width: 65px; height: 60px; border-radius: 18px; border: 3px solid white;
+      width: 60px; height: 60px; border-radius: 12px; border: 2px solid var(--glass-border);
       background: #34495e; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; position: relative;
-      font-size: 30px; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+      font-size: 24px;
     }
     .placement-badge { 
       position: absolute; top: -12px; right: -12px; color: #333; padding: 4px 10px; 
-      border-radius: 10px; font-size: 12px; font-weight: 800; border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      border-radius: 8px; font-size: 11px; font-weight: 800; border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     @keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
-    .badge-1 { background: linear-gradient(to bottom, #ffd700, #ffa500); }
-    .badge-2 { background: linear-gradient(to bottom, #e0e0e0, #a0a0a0); }
-    .badge-3 { background: linear-gradient(to bottom, #cd7f32, #8b4513); color: white; }
+    .badge-1 { background: #ffd700; }
+    .badge-2 { background: #e0e0e0; }
+    .badge-3 { background: #cd7f32; color: white; }
 
-    .player-name { font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; text-align: center; width: 100%; color: var(--text-primary); }
+    .player-name { font-weight: 600; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; text-align: center; color: var(--text-primary); }
     
     .dice {
-      width: 55px; height: 55px; background: white; border-radius: 12px;
+      width: 50px; height: 50px; background: white; border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 5px 0 #ddd, 0 10px 20px rgba(0,0,0,0.4); position: relative; cursor: pointer;
+      box-shadow: 0 4px 0 #ddd, 0 8px 16px rgba(0,0,0,0.2); position: relative; cursor: pointer;
     }
     .dice.rolling { animation: diceShake 0.4s infinite; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #2c3e50; position: absolute; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #2c3e50; position: absolute; }
     
     #board-container {
       grid-column: 2; grid-row: 1 / 4; position: relative;
-      width: 92vw; height: 92vw; max-width: 620px; max-height: 620px;
-      background: #222; border: 12px solid #1a1a1a; border-radius: 15px; box-shadow: var(--shadow);
-      padding: 5px;
+      width: 90vw; height: 90vw; max-width: 600px; max-height: 600px;
+      background: var(--grid-border); border: 4px solid var(--grid-border); border-radius: 8px; box-shadow: var(--shadow);
     }
     #board { display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr); width: 100%; height: 100%; background: var(--board-bg); border-radius: 4px; overflow: hidden; }
     .cell { border: 1px solid var(--grid-border); position: relative; }
     
-    .base { grid-area: span 6 / span 6; display: flex; align-items: center; justify-content: center; position: relative; background: var(--base-bg); }
+    .base { grid-area: span 6 / span 6; display: flex; align-items: center; justify-content: center; position: relative; }
     .base-red { background: var(--red-grad); }
     .base-green { background: var(--green-grad); }
     .base-blue { background: var(--blue-grad); }
     .base-yellow { background: var(--yellow-grad); }
     
     .base-inner {
-      width: 75%; height: 75%; background: var(--hud-bg); border-radius: 20%;
-      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; padding: 15px; gap: 15px;
-      box-shadow: inset 0 4px 10px rgba(0,0,0,0.1);
+      width: 70%; height: 70%; background: var(--hud-bg); border-radius: 15%;
+      display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; padding: 12px; gap: 12px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
     }
-    .base-red .base-inner { border: 2px solid var(--red-solid); }
-    .base-green .base-inner { border: 2px solid var(--green-solid); }
-    .base-blue .base-inner { border: 2px solid var(--blue-solid); }
-    .base-yellow .base-inner { border: 2px solid var(--yellow-solid); }
+    .base-red .base-inner { border: 1px solid var(--red-solid); }
+    .base-green .base-inner { border: 1px solid var(--green-solid); }
+    .base-blue .base-inner { border: 1px solid var(--blue-solid); }
+    .base-yellow .base-inner { border: 1px solid var(--yellow-solid); }
     
-    .slot { border-radius: 50%; border: 1px solid var(--grid-border); background: rgba(0,0,0,0.03); }
+    .slot { border-radius: 50%; border: 1px solid var(--grid-border); background: rgba(0,0,0,0.02); }
 
     .cell.red { background: var(--red-solid); }
     .cell.green { background: var(--green-solid); }
     .cell.yellow { background: var(--yellow-solid); }
     .cell.blue { background: var(--blue-solid); }
 
-    .center { grid-area: 7 / 7 / 10 / 10; position: relative; background: var(--board-bg); border: 2px solid var(--grid-border); }
+    .center { grid-area: 7 / 7 / 10 / 10; position: relative; background: var(--board-bg); }
     .center-tri { position: absolute; width: 100%; height: 100%; }
-    .tri-top { background: var(--green-solid); opacity: 0.8; clip-path: polygon(50% 50%, 0 0, 100% 0); }
-    .tri-bottom { background: var(--blue-solid); opacity: 0.8; clip-path: polygon(50% 50%, 0 100%, 100% 100%); }
-    .tri-left { background: var(--red-solid); opacity: 0.8; clip-path: polygon(50% 50%, 0 0, 0 100%); }
-    .tri-right { background: var(--yellow-solid); opacity: 0.8; clip-path: polygon(50% 50%, 100% 0, 100% 100%); }
+    .tri-top { background: var(--green-solid); opacity: 0.6; clip-path: polygon(50% 50%, 0 0, 100% 0); }
+    .tri-bottom { background: var(--blue-solid); opacity: 0.6; clip-path: polygon(50% 50%, 0 100%, 100% 100%); }
+    .tri-left { background: var(--red-solid); opacity: 0.6; clip-path: polygon(50% 50%, 0 0, 0 100%); }
+    .tri-right { background: var(--yellow-solid); opacity: 0.6; clip-path: polygon(50% 50%, 100% 0, 100% 100%); }
 
     .star-icon { position: absolute; width: 70%; height: 70%; top: 15%; left: 15%; fill: var(--star-fill); }
 
     .piece {
       border-radius: 50%; position: absolute; z-index: 10;
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      cursor: pointer; border: 2px solid rgba(255,255,255,0.5);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      cursor: pointer; border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
     }
-    /* Light Mode Tokens */
-    .piece.red { background: radial-gradient(circle at 30% 30%, #ff6b6b, #c0392b); }
-    .piece.green { background: radial-gradient(circle at 30% 30%, #58d68d, #27ae60); }
-    .piece.yellow { background: radial-gradient(circle at 30% 30%, #f7dc6f, #f1c40f); }
-    .piece.blue { background: radial-gradient(circle at 30% 30%, #5dade2, #2980b9); }
+    .piece.red { background: var(--red-solid); }
+    .piece.green { background: var(--green-solid); }
+    .piece.yellow { background: var(--yellow-solid); }
+    .piece.blue { background: var(--blue-solid); }
     
-    /* Dark Mode Tokens (Neon) */
-    body[data-theme="dark"] .piece.red { box-shadow: 0 0 15px var(--red-solid), inset 0 0 5px white; }
-    body[data-theme="dark"] .piece.green { box-shadow: 0 0 15px var(--green-solid), inset 0 0 5px white; }
-    body[data-theme="dark"] .piece.yellow { box-shadow: 0 0 15px var(--yellow-solid), inset 0 0 5px white; }
-    body[data-theme="dark"] .piece.blue { box-shadow: 0 0 15px var(--blue-solid), inset 0 0 5px white; }
-
     .piece.playable { animation: bounce 0.8s infinite; z-index: 30; border-color: white; }
-    @keyframes bounce { 0%, 100% { transform: scale(1) translateY(0); filter: brightness(1.2); } 50% { transform: scale(1.1) translateY(-15px); } }
+    @keyframes bounce { 0%, 100% { transform: scale(1); filter: brightness(1.1); } 50% { transform: scale(1.1) translateY(-10px); } }
 
     #login-screen, #reconnect-modal { 
       position: fixed; top:0; left:0; width:100%; height:100%; 
-      background: rgba(0,0,0,0.8); backdrop-filter: blur(15px);
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
       z-index: 1000; display: flex; align-items: center; justify-content: center;
     }
     .modal-box { 
-      background: var(--hud-bg); color: var(--text-primary); padding: 40px; border-radius: 30px; 
+      background: var(--hud-bg); color: var(--text-primary); padding: 40px; border-radius: 20px; 
       text-align: center; box-shadow: var(--shadow); max-width: 420px; width: 92%;
       border: 1px solid var(--glass-border);
     }
-    .modal-box input, .modal-box select { width: 100%; padding: 15px; margin: 12px 0; border-radius: 12px; border: 1px solid var(--grid-border); font-size: 16px; background: var(--board-bg); color: var(--text-primary); }
+    .modal-box input, .modal-box select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--grid-border); font-size: 16px; background: var(--board-bg); color: var(--text-primary); }
 
     .btn { 
-      background: linear-gradient(to bottom, #f39c12, #d35400); color: white; border: none; padding: 18px 30px; border-radius: 15px; 
-      font-weight: 800; font-size: 16px; cursor: pointer; width: 100%; margin-top: 12px; box-shadow: 0 4px 0 #a04000;
+      background: linear-gradient(to bottom, #f39c12, #d35400); color: white; border: none; padding: 16px 24px; border-radius: 12px; 
+      font-weight: 800; font-size: 15px; cursor: pointer; width: 100%; margin-top: 12px;
     }
-    .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #a04000; }
+    .btn:active { transform: translateY(2px); }
     
-    #footer-controls { background: var(--hud-bg); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 50px; border: 1px solid var(--glass-border); color: var(--text-primary); }
+    #footer-controls { background: var(--hud-bg); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 40px; border: 1px solid var(--glass-border); color: var(--text-primary); }
+
+    .color-btn { width: 60px; height: 60px; border-radius: 12px; border: 4px solid transparent; cursor: pointer; transition: 0.2s; }
+    .color-btn.selected { border-color: white; transform: scale(1.1); box-shadow: 0 0 15px rgba(255,255,255,0.4); }
 
     .hidden { display: none !important; }
 
     @media (max-width: 900px) {
       #game-wrapper { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto auto; gap: 10px; }
-      #board-container { grid-column: 1 / 3; grid-row: 2; width: 95vw; height: 92vw; }
+      #board-container { grid-column: 1 / 3; grid-row: 2; width: 95vw; height: 95vw; }
     }
   </style>
 </head>
@@ -233,26 +227,47 @@
     </div>
 
     <div class="modal-box hidden" id="local-setup">
-      <h2 id="local-setup-title">LOCAL SETUP</h2>
-      <div id="local-players-config">
-         <p>Select Players:</p>
+      <h2 id="local-setup-title">GAME SETUP</h2>
+      
+      <!-- Pass & Play Config -->
+      <div id="local-players-config" class="hidden">
+         <p>Number of Players:</p>
          <div style="display:flex; justify-content:center; gap:10px; margin:10px 0;">
            <button class="btn" style="width:auto; min-width:60px; margin:0;" onclick="setLocalPlayerCount(2)">2</button>
            <button class="btn" style="width:auto; min-width:60px; margin:0;" onclick="setLocalPlayerCount(3)">3</button>
            <button class="btn" style="width:auto; min-width:60px; margin:0;" onclick="setLocalPlayerCount(4)">4</button>
          </div>
+         <button class="btn" onclick="initLocalGame()">START MATCH</button>
       </div>
-      <div id="ai-color-choice" class="hidden">
-         <p>Pick Your Color:</p>
-         <select id="aiPlayerColor">
-           <option value="red">RED</option>
-           <option value="green">GREEN</option>
-           <option value="yellow">YELLOW</option>
-           <option value="blue">BLUE</option>
+
+      <!-- AI Config -->
+      <div id="ai-config" class="hidden">
+         <p>AI Difficulty:</p>
+         <select id="aiDifficulty" style="margin-bottom:15px;" onchange="updateBotRoster(selectedAIColor)">
+           <option value="1">Level 1 (Easy)</option>
+           <option value="2">Level 2 (Normal)</option>
+           <option value="3">Level 3 (Hard)</option>
+           <option value="4">Level 4 (Expert)</option>
          </select>
+         
+         <p>Play As:</p>
+         <div style="display:flex; justify-content:center; gap:10px; margin:10px 0;">
+           <div class="color-btn" style="background:var(--red-solid)" onclick="selectAIColor('red')"></div>
+           <div class="color-btn" style="background:var(--green-solid)" onclick="selectAIColor('green')"></div>
+           <div class="color-btn" style="background:var(--yellow-solid)" onclick="selectAIColor('yellow')"></div>
+           <div class="color-btn" style="background:var(--blue-solid)" onclick="selectAIColor('blue')"></div>
+         </div>
+
+         <div style="text-align:left; margin-top:20px; background:rgba(0,0,0,0.05); padding:15px; border-radius:12px;">
+            <p style="margin:0 0 10px 0; font-weight:800; font-size:12px; opacity:0.6;">BOT ROSTER:</p>
+            <div id="bot-roster-list" style="font-size:14px; font-weight:600;">
+               <!-- Populated by JS -->
+            </div>
+         </div>
+         <button class="btn" onclick="startAIGame()">START BATTLE</button>
       </div>
-      <button class="btn" onclick="initLocalGame()">START GAME</button>
-      <button class="btn" style="background:#95a5a6; margin-top:10px;" onclick="backToModes()">BACK</button>
+
+      <button class="btn" style="background:#95a5a6; margin-top:20px;" onclick="backToModes()">BACK</button>
     </div>
   </div>
 
@@ -331,7 +346,7 @@
     let currentGameId = null, myColor = null, myName = null, gameState = null, gameMode = 'online';
     let pollTimer = null, aiTimer = null, localPlayerCount = 2, isAnimating = false, isCreating = true;
     let pollRetryCount = 0, backoffDelay = 1000, localStateVersion = 0;
-    let isRequestPending = false, retryTimeout = null;
+    let isRequestPending = false, retryTimeout = null, selectedAIColor = 'red';
     let lastStatus = null, lastPieces = null;
 
     const connectivityHUD = {
@@ -420,7 +435,52 @@
     function showJoinRoom() { isCreating = false; document.getElementById('online-pre-join').classList.add('hidden'); document.getElementById('room-setup').classList.remove('hidden'); document.getElementById('setup-title').innerText = "JOIN ROOM"; document.getElementById('color-select-area').classList.add('hidden'); document.getElementById('gameIdInput').classList.remove('hidden'); }
     function backToModes() { document.getElementById('mode-selection').classList.remove('hidden'); document.getElementById('online-lobby').classList.add('hidden'); document.getElementById('local-setup').classList.add('hidden'); document.getElementById('game-wrapper').classList.add('hidden'); document.getElementById('footer-controls').classList.add('hidden'); }
     function setLocalPlayerCount(n) { localPlayerCount = n; document.querySelectorAll('#local-players-config .btn').forEach(b => { if (b.innerText.length === 1) b.style.opacity = (parseInt(b.innerText) === n) ? "1" : "0.5"; }); }
-    function showLocalSetup(m) { gameMode = m; document.getElementById('mode-selection').classList.add('hidden'); document.getElementById('local-setup').classList.remove('hidden'); document.getElementById('local-setup-title').innerText = m === 'ai' ? 'VS COMPUTER' : 'PASS & PLAY'; document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); document.getElementById('ai-color-choice').classList.toggle('hidden', m !== 'ai'); }
+    function showLocalSetup(m) { 
+      gameMode = m; 
+      document.getElementById('mode-selection').classList.add('hidden'); 
+      document.getElementById('local-setup').classList.remove('hidden'); 
+      document.getElementById('local-setup-title').innerText = (m === 'ai') ? 'CHALLENGE AI' : 'PASS & PLAY'; 
+      document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); 
+      document.getElementById('ai-config').classList.toggle('hidden', m !== 'ai'); 
+      if (m === 'ai') selectAIColor('red');
+    }
+
+    function selectAIColor(c) {
+      selectedAIColor = c;
+      document.querySelectorAll('.color-btn').forEach(b => {
+        b.classList.toggle('selected', b.style.background.includes(c));
+      });
+      updateBotRoster(c);
+    }
+
+    function updateBotRoster(userColor) {
+      const roster = document.getElementById('bot-roster-list'); roster.innerHTML = '';
+      const dSelect = document.getElementById('aiDifficulty');
+      const diff = dSelect.options[dSelect.selectedIndex].text.split('(')[1].split(')')[0];
+      COLORS.forEach(c => {
+        if (c !== userColor) {
+          const item = document.createElement('div');
+          item.style = `color: var(--${c}-solid); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;`;
+          item.innerHTML = `<div style="width:10px; height:10px; border-radius:50%; background:currentColor;"></div> Bot ${c.toUpperCase()} (${diff})`;
+          roster.appendChild(item);
+        }
+      });
+    }
+
+    function startAIGame() {
+      gameMode = 'ai'; myColor = selectedAIColor;
+      const difficulty = parseInt(document.getElementById('aiDifficulty').value);
+      cleanupEngine();
+      document.getElementById('login-screen').classList.add('hidden'); 
+      document.getElementById('game-wrapper').classList.remove('hidden'); 
+      document.getElementById('footer-controls').classList.remove('hidden');
+      document.getElementById('room-code-display').innerText = "VS COMPUTER";
+      const p = { red: null, green: null, yellow: null, blue: null };
+      p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = "Bot " + c.toUpperCase(); });
+      gameState = { gameId: 'AI_MATCH', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
+      updateUI(gameState); 
+      if (gameState.currentTurn !== myColor) checkAITurn();
+    }
     
     function initOnlineGame() {
       myName = document.getElementById('playerName').value; myColor = document.getElementById('playerColor').value; const code = document.getElementById('gameIdInput').value.toUpperCase();

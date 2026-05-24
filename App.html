@@ -29,22 +29,21 @@
     }
 
     body[data-theme="dark"] {
-      --bg-main: #050505; /* True Black background */
-      --board-bg: #121212; /* Slightly elevated black */
-      --grid-border: #2a2a2a; /* Sharp subtle lines */
+      --bg-main: #050505; 
+      --board-bg: #121212; 
+      --grid-border: #2a2a2a; 
       --text-primary: #ffffff;
-      --hud-bg: #1a1a1a; /* Clean solid grey panels */
+      --hud-bg: #1a1a1a; 
       --glass-border: #333333;
       --shadow: 0 4px 25px rgba(0, 0, 0, 0.8);
       --star-fill: rgba(255,255,255,0.15);
       
-      /* Vibrant Saturated Primaries for Dark Mode */
       --red-solid: #ff3333;
       --green-solid: #00e64d;
       --blue-solid: #3385ff;
       --yellow-solid: #ffea00;
       
-      --red-grad: #2a0000; /* Deep matte base */
+      --red-grad: #2a0000; 
       --green-grad: #002a00;
       --yellow-grad: #2a2a00;
       --blue-grad: #00002a;
@@ -89,7 +88,6 @@
       background: #34495e; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; position: relative;
       font-size: 24px;
     }
-    
     body[data-theme="dark"] .avatar { background: #121212; }
 
     .placement-badge { 
@@ -103,14 +101,6 @@
     .badge-3 { background: #cd7f32; color: white; }
 
     .player-name { font-weight: 600; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; text-align: center; color: var(--text-primary); }
-    
-    .dice {
-      width: 50px; height: 50px; background: white; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 0 #ddd, 0 8px 16px rgba(0,0,0,0.2); position: relative; cursor: pointer;
-    }
-    .dice.rolling { animation: diceShake 0.4s infinite; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #2c3e50; position: absolute; }
     
     #board-container {
       grid-column: 2; grid-row: 1 / 4; position: relative;
@@ -127,6 +117,7 @@
     .blue-base { background: var(--blue-grad) !important; }
     .yellow-base { background: var(--yellow-grad) !important; }
     
+    .base-container { position: absolute; top: 0; left: 0; width: 600%; height: 600%; display: flex; align-items: center; justify-content: center; pointer-events: none; }
     .base-inner {
       width: 70%; height: 70%; background: var(--hud-bg); border-radius: 15%;
       display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; padding: 12px; gap: 12px;
@@ -153,7 +144,6 @@
 
     .safe-zone { background: rgba(0,0,0,0.05) !important; }
     body[data-theme="dark"] .safe-zone { background: rgba(255,255,255,0.05) !important; }
-    .tri-right { background: var(--yellow-solid); opacity: 0.6; clip-path: polygon(50% 50%, 100% 0, 100% 100%); }
 
     .star-icon { position: absolute; width: 70%; height: 70%; top: 15%; left: 15%; fill: var(--star-fill); }
 
@@ -175,7 +165,7 @@
     body[data-theme="dark"] .piece.yellow { border-color: #ffffcc; box-shadow: 0 0 15px rgba(255,234,0,0.4); }
 
     .piece.playable { animation: bounce 0.8s infinite; z-index: 30; border-color: white; }
-    @keyframes bounce { 0%, 100% { transform: scale(1); filter: brightness(1.2); } 50% { transform: scale(1.1) translateY(-10px); } }
+    @keyframes bounce { 0%, 100% { transform: scale(1) translateY(0); filter: brightness(1.2); } 50% { transform: scale(1.1) translateY(-10px); } }
 
     #login-screen, #reconnect-modal { 
       position: fixed; top:0; left:0; width:100%; height:100%; 
@@ -195,13 +185,30 @@
     }
     .btn:active { transform: translateY(2px); }
     
-    #footer-controls { background: var(--hud-bg); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 40px; border: 1px solid var(--glass-border); color: var(--text-primary); }
+    #footer-controls { background: var(--hud-bg); backdrop-filter: blur(10px); padding: 10px 25px; border-radius: 40px; border: 1px solid var(--glass-border); color: var(--text-primary); display: flex; align-items: center; gap: 20px; }
+
+    #dice-button {
+      width: 60px; height: 60px; background: #ffffff; border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 -3px 5px rgba(0,0,0,0.2);
+      display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 4px; padding: 8px; cursor: pointer;
+      transition: box-shadow 0.3s, transform 0.1s;
+    }
+    #dice-button:active { transform: scale(0.95); }
+    .pip { background-color: #333; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); display: none; }
+    
+    #dice-button.roll-1 .pip:nth-child(5) { display: block; }
+    #dice-button.roll-2 .pip:nth-child(1), #dice-button.roll-2 .pip:nth-child(9) { display: block; }
+    #dice-button.roll-3 .pip:nth-child(1), #dice-button.roll-3 .pip:nth-child(5), #dice-button.roll-3 .pip:nth-child(9) { display: block; }
+    #dice-button.roll-4 .pip:nth-child(1), #dice-button.roll-4 .pip:nth-child(3), #dice-button.roll-4 .pip:nth-child(7), #dice-button.roll-4 .pip:nth-child(9) { display: block; }
+    #dice-button.roll-5 .pip:nth-child(1), #dice-button.roll-5 .pip:nth-child(3), #dice-button.roll-5 .pip:nth-child(5), #dice-button.roll-5 .pip:nth-child(7), #dice-button.roll-5 .pip:nth-child(9) { display: block; }
+    #dice-button.roll-6 .pip:nth-child(1), #dice-button.roll-6 .pip:nth-child(3), #dice-button.roll-6 .pip:nth-child(4), #dice-button.roll-6 .pip:nth-child(6), #dice-button.roll-6 .pip:nth-child(7), #dice-button.roll-6 .pip:nth-child(9) { display: block; }
+
+    #dice-button.shaking { animation: diceShake 0.5s linear; pointer-events: none; }
+    @keyframes diceShake { 0%, 100% { transform: rotate(0deg) scale(1); } 25% { transform: rotate(15deg) scale(1.1); } 50% { transform: rotate(-15deg) scale(1.1); } 75% { transform: rotate(15deg) scale(1.1); } }
 
     .color-btn { width: 65px; height: 65px; border-radius: 15px; border: 4px solid transparent; cursor: pointer; transition: 0.2s; box-shadow: var(--shadow); }
     .color-btn.selected { border-color: var(--text-primary); transform: scale(1.1); }
-
     .difficulty-slider { width: 100%; margin: 15px 0; accent-color: #f39c12; }
-
     .hidden { display: none !important; }
 
     @media (max-width: 900px) {
@@ -229,7 +236,6 @@
           <button class="btn" style="background:var(--blue-solid)" onclick="showJoinRoom()">JOIN ROOM</button>
           <button class="btn" style="background:#95a5a6" onclick="backToModes()">BACK</button>
        </div>
-       
        <div id="room-setup" class="hidden">
           <h3 id="setup-title">Setup</h3>
           <input type="text" id="playerName" placeholder="Your Name">
@@ -250,8 +256,6 @@
 
     <div class="modal-box hidden" id="local-setup">
       <h2 id="local-setup-title">GAME SETUP</h2>
-      
-      <!-- Pass & Play Config -->
       <div id="local-players-config" class="hidden">
          <p>Number of Players:</p>
          <div style="display:flex; justify-content:center; gap:10px; margin:10px 0;">
@@ -261,12 +265,9 @@
          </div>
          <button class="btn" onclick="initLocalGame()">START MATCH</button>
       </div>
-
-      <!-- AI Config -->
       <div id="ai-config" class="hidden">
          <p>AI Strength: <span id="difficulty-label" style="font-weight:800; color:#f39c12;">Normal</span></p>
          <input type="range" id="aiDifficulty" class="difficulty-slider" min="1" max="4" value="2" oninput="updateBotRoster(selectedAIColor)">
-         
          <p>Play As:</p>
          <div style="display:flex; justify-content:center; gap:12px; margin:15px 0;">
            <div class="color-btn" id="btn-red" style="background:var(--red-solid)" onclick="selectAIColor('red')"></div>
@@ -274,16 +275,12 @@
            <div class="color-btn" id="btn-yellow" style="background:var(--yellow-solid)" onclick="selectAIColor('yellow')"></div>
            <div class="color-btn" id="btn-blue" style="background:var(--blue-solid)" onclick="selectAIColor('blue')"></div>
          </div>
-
          <div style="text-align:left; margin-top:20px; background:rgba(0,0,0,0.05); padding:15px; border-radius:12px; border: 1px solid var(--grid-border);">
             <p style="margin:0 0 10px 0; font-weight:800; font-size:12px; opacity:0.6; text-transform:uppercase; letter-spacing:1px;">Opponents:</p>
-            <div id="bot-roster-list" style="font-size:14px; font-weight:600;">
-               <!-- Populated by JS -->
-            </div>
+            <div id="bot-roster-list" style="font-size:14px; font-weight:600;"></div>
          </div>
          <button class="btn" onclick="startAIGame()">START BATTLE</button>
       </div>
-
       <button class="btn" style="background:#95a5a6; margin-top:20px;" onclick="backToModes()">BACK</button>
     </div>
   </div>
@@ -332,6 +329,11 @@
     <div style="font-weight: bold; background: rgba(0,0,0,0.1); padding: 5px 15px; border-radius: 20px;">
       ROOM: <span id="room-code-display">----</span>
     </div>
+    <div id="dice-button" onclick="rollDice()">
+      <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+      <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+      <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+    </div>
     <button id="start-game-btn" class="btn hidden" style="width:auto; padding: 5px 15px; background:var(--green-solid); margin:0; box-shadow:none;" onclick="handleStartGame()">START GAME</button>
     <button class="btn" style="width:auto; padding: 5px 15px; background:#c0392b; margin:0; box-shadow:none;" onclick="quitToMenu()">QUIT</button>
     <button class="btn" id="mute-btn" style="width:auto; padding: 5px 15px; background:#7f8c8d; margin:0; box-shadow:none;" onclick="audioHaptic.toggleMute()">🔊</button>
@@ -364,7 +366,7 @@
     let pollTimer = null, aiTimer = null, localPlayerCount = 2, isAnimating = false, isCreating = true;
     let pollRetryCount = 0, backoffDelay = 1000, localStateVersion = 0;
     let isRequestPending = false, retryTimeout = null, selectedAIColor = 'red';
-    let lastStatus = null, lastPieces = null;
+    let lastStatus = null, lastPieces = null, lastSeenRollId = null, isDiceAnimating = false;
 
     const connectivityHUD = {
       update(status) {
@@ -399,7 +401,6 @@
       document.getElementById('theme-toggle').innerText = next === 'dark' ? '☀️' : '🌙';
       localStorage.setItem('ludo_theme', next);
     }
-
     function initTheme() {
       const saved = localStorage.getItem('ludo_theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -410,34 +411,25 @@
 
     /** ENGINE CORE **/
     function handleServerError(res, originalAction = null) {
-      isRequestPending = false;
-      connectivityHUD.update('error');
+      isRequestPending = false; connectivityHUD.update('error');
       if (res && res.error === "SERVER_BUSY") {
         showToast("Server busy. Retrying...");
         if (retryTimeout) clearTimeout(retryTimeout);
         retryTimeout = setTimeout(() => { if (originalAction) originalAction(); else poll(); }, 1000);
         return;
       }
-      if (res && res.syncRequired) {
-        showToast("Sync required. Refreshing board...");
-        isAnimating = false; poll();
-        return;
-      }
-      console.error("Critical Server Error:", res ? res.error : "Unknown");
+      if (res && res.syncRequired) { showToast("Sync required. Refreshing..."); isAnimating = false; poll(); return; }
       startPolling();
     }
-
-    function onErr(e) { isRequestPending = false; connectivityHUD.update('error'); console.error("Network Exception:", e); startPolling(); }
-
+    function onErr(e) { isRequestPending = false; connectivityHUD.update('error'); startPolling(); }
     function cleanupEngine() {
       if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
       if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
-      isAnimating = false; isRequestPending = false; localStateVersion = 0; lastStatus = null; lastPieces = null;
+      isAnimating = false; isDiceAnimating = false; isRequestPending = false; localStateVersion = 0; lastStatus = null; lastPieces = null; lastSeenRollId = null;
       document.querySelectorAll('.piece').forEach(p => { p.dataset.animating = 'false'; p.classList.remove('playable'); p.onclick = null; });
       connectivityHUD.update('online');
     }
-
     function showToast(msg) {
       const existing = document.getElementById('toast-msg'); if (existing) existing.remove();
       const toast = document.createElement('div'); toast.id = 'toast-msg';
@@ -452,156 +444,165 @@
     function showJoinRoom() { isCreating = false; document.getElementById('online-pre-join').classList.add('hidden'); document.getElementById('room-setup').classList.remove('hidden'); document.getElementById('setup-title').innerText = "JOIN ROOM"; document.getElementById('color-select-area').classList.add('hidden'); document.getElementById('gameIdInput').classList.remove('hidden'); }
     function backToModes() { document.getElementById('mode-selection').classList.remove('hidden'); document.getElementById('online-lobby').classList.add('hidden'); document.getElementById('local-setup').classList.add('hidden'); document.getElementById('game-wrapper').classList.add('hidden'); document.getElementById('footer-controls').classList.add('hidden'); }
     function setLocalPlayerCount(n) { localPlayerCount = n; document.querySelectorAll('#local-players-config .btn').forEach(b => { if (b.innerText.length === 1) b.style.opacity = (parseInt(b.innerText) === n) ? "1" : "0.5"; }); }
-    function showLocalSetup(m) { 
-       gameMode = m; 
-       document.getElementById('mode-selection').classList.add('hidden'); 
-       document.getElementById('local-setup').classList.remove('hidden'); 
-       document.getElementById('local-setup-title').innerText = (m === 'ai') ? 'CHALLENGE AI' : 'PASS & PLAY'; 
-       document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); 
-       document.getElementById('ai-config').classList.toggle('hidden', m !== 'ai'); 
-       if (m === 'ai') selectAIColor('red');
-    }
-
-    function selectAIColor(c) {
-       selectedAIColor = c;
-       document.querySelectorAll('.color-btn').forEach(b => {
-          b.classList.toggle('selected', b.id === `btn-${c}`);
-       });
-       updateBotRoster(c);
-    }
-
+    function showLocalSetup(m) { gameMode = m; document.getElementById('mode-selection').classList.add('hidden'); document.getElementById('local-setup').classList.remove('hidden'); document.getElementById('local-setup-title').innerText = (m === 'ai') ? 'CHALLENGE AI' : 'PASS & PLAY'; document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); document.getElementById('ai-config').classList.toggle('hidden', m !== 'ai'); if (m === 'ai') selectAIColor('red'); }
+    function selectAIColor(c) { selectedAIColor = c; document.querySelectorAll('.color-btn').forEach(b => { b.classList.toggle('selected', b.id === `btn-${c}`); }); updateBotRoster(c); }
     function updateBotRoster(userColor) {
        const roster = document.getElementById('bot-roster-list'); roster.innerHTML = '';
        const val = document.getElementById('aiDifficulty').value;
        const labels = { "1": "Easy", "2": "Normal", "3": "Hard", "4": "Expert" };
-       const diffText = labels[val];
-       document.getElementById('difficulty-label').innerText = diffText;
-       
-       COLORS.forEach(c => {
-          if (c !== userColor) {
-             const item = document.createElement('div');
-             item.style = `color: var(--${c}-solid); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;`;
-             item.innerHTML = `<div style="width:10px; height:10px; border-radius:50%; background:currentColor; box-shadow: 0 0 10px currentColor;"></div> ${c.charAt(0).toUpperCase() + c.slice(1)} Bot <span style="opacity:0.6; font-size:11px; margin-left:auto;">${diffText}</span>`;
-             roster.appendChild(item);
-          }
-       });
+       const diffText = labels[val]; document.getElementById('difficulty-label').innerText = diffText;
+       COLORS.forEach(c => { if (c !== userColor) { const item = document.createElement('div'); item.style = `color: var(--${c}-solid); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;`; item.innerHTML = `<div style="width:10px; height:10px; border-radius:50%; background:currentColor; box-shadow: 0 0 10px currentColor;"></div> ${c.charAt(0).toUpperCase() + c.slice(1)} Bot <span style="opacity:0.6; font-size:11px; margin-left:auto;">${diffText}</span>`; roster.appendChild(item); } });
     }
 
-    function startAIGame() {
-       gameMode = 'ai'; myColor = selectedAIColor;
-       const difficulty = parseInt(document.getElementById('aiDifficulty').value);
-       cleanupEngine();
-       document.getElementById('login-screen').classList.add('hidden'); 
-       document.getElementById('game-wrapper').classList.remove('hidden'); 
-       document.getElementById('footer-controls').classList.remove('hidden');
-       document.getElementById('room-code-display').innerText = "VS COMPUTER";
-       const p = { red: null, green: null, yellow: null, blue: null };
-       p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = c.charAt(0).toUpperCase() + c.slice(1) + " Bot"; });
-       gameState = { gameId: 'AI_MATCH', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
-       updateUI(gameState); 
-       if (gameState.currentTurn !== myColor) checkAITurn();
-    }
-    
     function initBoard() {
       const board = document.getElementById('board'); board.innerHTML = '';
       for (let r = 0; r < 15; r++) {
         for (let c = 0; c < 15; c++) {
-          const cell = document.createElement('div');
-          cell.id = `cell-${r}-${c}`;
-          cell.className = 'cell';
-
-          // Bases (6x6 areas)
+          const cell = document.createElement('div'); cell.id = `cell-${r}-${c}`; cell.className = 'cell';
           if (r <= 5 && c <= 5) cell.classList.add('base', 'red-base');
           else if (r <= 5 && c >= 9) cell.classList.add('base', 'green-base');
           else if (r >= 9 && c <= 5) cell.classList.add('base', 'blue-base');
           else if (r >= 9 && c >= 9) cell.classList.add('base', 'yellow-base');
-
-          // Home Center (3x3 area)
           else if (r >= 6 && r <= 8 && c >= 6 && c <= 8) cell.classList.add('home-center');
-
-          // Home Stretches
           else if (r === 7 && c >= 1 && c <= 5) cell.classList.add('home-stretch', 'red');
           else if (c === 7 && r >= 1 && r <= 5) cell.classList.add('home-stretch', 'green');
           else if (r === 7 && c >= 9 && c <= 13) cell.classList.add('home-stretch', 'yellow');
           else if (c === 7 && r >= 9 && r <= 13) cell.classList.add('home-stretch', 'blue');
-
-          // Safe Stars & Start Squares
           const startSquares = [[6, 1], [1, 8], [8, 13], [13, 6]];
           const starSquares = [[6, 2], [2, 8], [8, 12], [12, 6]];
           if (startSquares.some(s => s[0] === r && s[1] === c) || starSquares.some(s => s[0] === r && s[1] === c)) {
             cell.classList.add('safe-zone');
             cell.innerHTML = `<svg class="star-icon" viewBox="0 0 512 512"><path d="M512 198.5L344.5 174.1 256 21.3l-88.5 152.8L0 198.5l121.3 118.1L92.7 482.7 256 397l163.3 85.7-28.6-166.1z"/></svg>`;
           }
-
           board.appendChild(cell);
         }
       }
-
-      // Inject Base Slots
-      const baseLayout = [
-        { r: 0, c: 0, color: 'red' }, { r: 0, c: 9, color: 'green' },
-        { r: 9, c: 0, color: 'blue' }, { r: 9, c: 9, color: 'yellow' }
-      ];
+      const baseLayout = [{ r: 0, c: 0, color: 'red' }, { r: 0, c: 9, color: 'green' }, { r: 9, c: 0, color: 'blue' }, { r: 9, c: 9, color: 'yellow' }];
       baseLayout.forEach(b => {
-        const area = document.createElement('div');
-        area.className = `base-container base-${b.color}`;
-        area.style = "position:absolute; top:0; left:0; width:600%; height:600%; display:flex; align-items:center; justify-content:center; pointer-events:none;";
+        const area = document.createElement('div'); area.className = `base-container base-${b.color}`; area.style = "position:absolute; top:0; left:0; width:600%; height:600%; display:flex; align-items:center; justify-content:center; pointer-events:none;";
         area.innerHTML = `<div class="base-inner"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>`;
         document.getElementById(`cell-${b.r}-${b.c}`).appendChild(area);
       });
-      
-      // Center Overlay
       const center = document.getElementById('cell-7-7');
       center.innerHTML = `<div class="center-overlay" style="position:absolute; top:0; left:0; width:300%; height:300%; pointer-events:none;"><div class="center-tri tri-top"></div><div class="center-tri tri-bottom"></div><div class="center-tri tri-left"></div><div class="center-tri tri-right"></div></div>`;
     }
 
     function startAIGame() {
-       gameMode = 'ai'; myColor = selectedAIColor;
-       const difficulty = parseInt(document.getElementById('aiDifficulty').value);
-       cleanupEngine();
-       document.getElementById('login-screen').classList.add('hidden'); 
-       document.getElementById('game-wrapper').classList.remove('hidden'); 
-       document.getElementById('footer-controls').classList.remove('hidden');
-       document.getElementById('room-code-display').innerText = "VS COMPUTER";
-       const p = { red: null, green: null, yellow: null, blue: null };
-       const bots = { red: false, green: false, yellow: false, blue: false };
+       gameMode = 'ai'; myColor = selectedAIColor; const difficulty = parseInt(document.getElementById('aiDifficulty').value);
+       cleanupEngine(); document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden'); document.getElementById('room-code-display').innerText = "VS COMPUTER";
+       const p = { red: null, green: null, yellow: null, blue: null }, bots = { red: false, green: false, yellow: false, blue: false };
        p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) { p[c] = c.charAt(0).toUpperCase() + c.slice(1) + " Bot"; bots[c] = true; } });
-       gameState = { gameId: 'AI_MATCH', players: p, bots: bots, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
-       renderPieces(gameState);
-       updateUI(gameState); 
-       if (gameState.bots[gameState.currentTurn]) setTimeout(executeAITurn, 1000);
+       gameState = { gameId: 'AI_MATCH', players: p, bots: bots, currentTurn: 'red', dice: { value: null, hasRolled: false, rollId: null }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
+       initBoard(); renderPieces(gameState); updateUI(gameState); if (gameState.bots[gameState.currentTurn]) setTimeout(executeAITurn, 1000);
+    }
+
+    function initLocalGame() {
+      cleanupEngine(); document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden'); document.getElementById('room-code-display').innerText = gameMode.toUpperCase();
+      const p = { red: null, green: null, yellow: null, blue: null };
+      if (gameMode === 'local') { for (let i = 0; i < localPlayerCount; i++) p[COLORS[i]] = `Player ${i+1}`; myColor = 'all'; }
+      else { myColor = selectedAIColor; p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = "Bot " + c.toUpperCase(); }); }
+      gameState = { gameId: 'LOCAL', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false, rollId: null }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing' };
+      initBoard(); renderPieces(gameState); updateUI(gameState);
+    }
+
+    function initOnlineGame() {
+      myName = document.getElementById('playerName').value; myColor = document.getElementById('playerColor').value; const code = document.getElementById('gameIdInput').value.toUpperCase();
+      if (!myName) return alert("Enter name");
+      const action = () => {
+        isRequestPending = true; connectivityHUD.update('busy');
+        const success = (res) => { if (res.success) onGameJoined(res); else handleServerError(res, action); };
+        if (isCreating) google.script.run.withSuccessHandler(success).withFailureHandler(onErr).createGame(myName, myColor);
+        else google.script.run.withSuccessHandler(success).withFailureHandler(onErr).joinGame(code, myName, 'red');
+      };
+      action();
+    }
+    function onGameJoined(res) { 
+      const s = res.state; currentGameId = s.gameId; myColor = isCreating ? s.host : Object.keys(s.players).find(c => s.players[c] === myName);
+      isRequestPending = false; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden'); document.getElementById('room-code-display').innerText = s.gameId; 
+      initBoard(); updateUI(s); connectivityHUD.update('online'); startPolling(); 
+    }
+    function handleStartGame() { if (isRequestPending) return; const action = () => { isRequestPending = true; connectivityHUD.update('busy'); google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).startGame(currentGameId, myColor); }; action(); }
+    function startPolling() { if (gameMode !== 'online' || !currentGameId) return; if (pollTimer) clearTimeout(pollTimer); let d = backoffDelay; if (document.hidden) d = Math.max(d, 5000); pollTimer = setTimeout(poll, d); }
+    function poll() {
+      if (!currentGameId || gameMode !== 'online' || isRequestPending) return;
+      isRequestPending = true; connectivityHUD.update('busy');
+      google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; pollRetryCount = 0; backoffDelay = 1000; document.getElementById('reconnect-modal').classList.add('hidden'); connectivityHUD.update('online'); updateUI(res.state); startPolling(); } else handleServerError(res); }).withFailureHandler(onErr).getGameState(currentGameId);
+    }
+
+    /** CORE ACTIONS **/
+    function rollDice() {
+      const turn = (gameMode === 'online' && gameState.currentTurn === myColor) || (gameMode === 'local') || (gameMode === 'ai' && gameState.currentTurn === myColor);
+      if (!turn || gameState.dice.hasRolled || gameState.status !== 'playing' || isAnimating || isDiceAnimating || gameState.placements.includes(gameState.currentTurn) || isRequestPending) return;
+      animateDiceRollLocal();
+      if (gameMode === 'online') {
+        const action = () => {
+          isRequestPending = true; connectivityHUD.update('busy');
+          google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).rollDice(currentGameId, myColor);
+        };
+        setTimeout(action, 100);
+      } else setTimeout(() => executeLocalRoll(gameState.currentTurn), 500);
+    }
+    function animateDiceRollLocal() {
+      if (isDiceAnimating) return; isDiceAnimating = true; audioHaptic.diceRoll();
+      const el = document.getElementById('dice-button'); el.classList.add('shaking');
+      let spinCount = 0;
+      const spinInterval = setInterval(() => { el.className = 'shaking roll-' + (Math.floor(Math.random() * 6) + 1); if (++spinCount > 10) clearInterval(spinInterval); }, 50);
+      setTimeout(() => { el.classList.remove('shaking'); isDiceAnimating = false; }, 500);
+    }
+    function syncDiceAnimation(value) {
+      if (isDiceAnimating) return; isDiceAnimating = true; audioHaptic.diceRoll();
+      const el = document.getElementById('dice-button'); el.classList.add('shaking');
+      let spinCount = 0;
+      const spinInterval = setInterval(() => { el.className = 'shaking roll-' + (Math.floor(Math.random() * 6) + 1); if (++spinCount > 10) clearInterval(spinInterval); }, 50);
+      setTimeout(() => { el.classList.remove('shaking'); el.className = 'roll-' + value; isDiceAnimating = false; if (gameState) updateUI(gameState); }, 500);
+    }
+
+    function movePiece(idx) {
+      if (!gameState || isAnimating || isRequestPending || isDiceAnimating) return; const color = gameState.currentTurn, cur = gameState.pieces[color][idx], roll = gameState.dice.value, target = (cur === -1) ? 0 : cur + roll;
+      if (gameMode === 'online') { 
+        const action = () => {
+          isRequestPending = true; connectivityHUD.update('busy');
+          const el = document.getElementById(`piece-${color}-${idx}`); if (el) el.classList.remove('playable'); 
+          animatePieceHop(color, idx, cur, target); 
+          google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; if (!isAnimating) updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).movePiece(currentGameId, myColor, idx); 
+        };
+        action();
+      } else animatePieceHop(color, idx, cur, target).then(() => executeLocalMove(color, idx));
+    }
+
+    async function animatePieceHop(color, pIdx, start, target) {
+      isAnimating = true; const el = document.getElementById(`piece-${color}-${pIdx}`); if (!el) { isAnimating = false; return; }
+      el.dataset.animating = 'true';
+      let path = (start === -1) ? [0] : Array.from({length: target - start}, (_, i) => start + i + 1);
+      const bW = document.getElementById('board-container').clientWidth, cS = bW / 15;
+      for (const pos of path) {
+        audioHaptic.pieceHop(); if (gameState) { gameState.pieces[color][pIdx] = pos; renderPieces(gameState); }
+        const coords = getPieceCoords(color, pos, pIdx);
+        el.style.top = (coords[0]*cS+cS*0.1)+'px'; el.style.left = (coords[1]*cS+cS*0.1)+'px';
+        el.style.transform = `translateY(-15px) scale(1.1)`; await new Promise(r => setTimeout(r, 75));
+        el.style.transform = `translateY(0px) scale(1)`; await new Promise(r => setTimeout(r, 75));
+      }
+      el.dataset.animating = 'false'; isAnimating = false; 
+      if (gameMode === 'online') poll(); 
+      if (gameState) { const old = [...gameState.placements]; if (gameMode !== 'online') updateUI(gameState); if (gameState.placements.length > old.length && gameState.placements.includes(color)) audioHaptic.playerFinish(); }
     }
 
     function advanceTurn() {
       if (!gameState || gameState.status !== 'playing') return;
-      const idx = COLORS.indexOf(gameState.currentTurn);
-      let found = false;
+      const idx = COLORS.indexOf(gameState.currentTurn); let found = false;
       for (let i = 1; i < 4; i++) {
         const next = COLORS[(idx + i) % 4];
-        if (gameState.players[next] && !gameState.placements.includes(next)) {
-          gameState.currentTurn = next;
-          found = true;
-          break;
-        }
+        if (gameState.players[next] && !gameState.placements.includes(next)) { gameState.currentTurn = next; found = true; break; }
       }
-      gameState.dice.hasRolled = false; gameState.dice.value = null;
-      updateUI(gameState);
+      gameState.dice.hasRolled = false; gameState.dice.value = null; updateUI(gameState);
       if (found && gameState.bots && gameState.bots[gameState.currentTurn]) setTimeout(executeAITurn, 800);
     }
-
     function executeLocalRoll(color) {
-      const r = Math.floor(Math.random()*6)+1; 
-      gameState.dice.value = r; gameState.dice.hasRolled = true;
+      const r = Math.floor(Math.random()*6)+1; gameState.dice.value = r; gameState.dice.hasRolled = true;
       if(r === 6) gameState.consecutiveSixes[color]++; else gameState.consecutiveSixes[color] = 0;
-      if (gameState.consecutiveSixes[color] === 3) { 
-        gameState.consecutiveSixes[color] = 0; showToast("THREE SIXES! TURN PASSED");
-        setTimeout(advanceTurn, 1000);
-      } else { 
-        updateUI(gameState); 
-        if(!hasLegalMovesLocal(color, r)) { showToast("NO LEGAL MOVES"); setTimeout(advanceTurn, 1000); }
-      }
+      if (gameState.consecutiveSixes[color] === 3) { gameState.consecutiveSixes[color] = 0; showToast("THREE SIXES!"); setTimeout(advanceTurn, 1000); }
+      else { updateUI(gameState); if(!hasLegalMovesLocal(color, r)) { showToast("NO LEGAL MOVES"); setTimeout(advanceTurn, 1000); } }
     }
-
     function executeLocalMove(color, idx) {
       const roll = gameState.dice.value, cur = gameState.pieces[color][idx], next = (cur===-1)?0:cur+roll;
       let captured = false;
@@ -612,26 +613,17 @@
            COLORS.forEach(c => { if (c !== color) { gameState.pieces[c] = gameState.pieces[c].map(p => { if (p >= 0 && p <= 51 && getGlobalIndex(c, p) === gIdx) { captured = true; return -1; } return p; }); } }); 
         }
       }
-      gameState.pieces[color][idx] = next; 
-      const finished = gameState.pieces[color].filter(p => p === 57).length;
+      gameState.pieces[color][idx] = next; const finished = gameState.pieces[color].filter(p => p === 57).length;
       if (finished === 4 && !gameState.placements.includes(color)) gameState.placements.push(color);
       const active = Object.keys(gameState.players).filter(c => gameState.players[c]);
       if (gameState.placements.length >= active.length - 1) { gameState.status = 'gameOver'; updateUI(gameState); }
-      else { 
-        if (roll === 6 || captured || finished === 4) {
-           gameState.dice.hasRolled = false; gameState.dice.value = null; updateUI(gameState);
-           if (gameMode === 'ai' && gameState.bots[color]) setTimeout(executeAITurn, 1000);
-        } else advanceTurn();
-      }
+      else { if (roll === 6 || captured || finished === 4) { gameState.dice.hasRolled = false; gameState.dice.value = null; updateUI(gameState); if (gameMode === 'ai' && gameState.bots[color]) setTimeout(executeAITurn, 1000); } else advanceTurn(); }
     }
-
     function executeAITurn() {
       if (!gameState || gameState.status !== 'playing') return;
       const color = gameState.currentTurn; if (!gameState.bots || !gameState.bots[color]) return;
-      executeLocalRoll(color);
-      if (!gameState.dice.hasRolled) return;
-      const roll = gameState.dice.value, legal = []; 
-      gameState.pieces[color].forEach((p, i) => { if (isMoveLegal(p, roll)) legal.push(i); });
+      executeLocalRoll(color); if (!gameState.dice.hasRolled) return;
+      const roll = gameState.dice.value, legal = []; gameState.pieces[color].forEach((p, i) => { if (isMoveLegal(p, roll)) legal.push(i); });
       if (legal.length > 0) {
         let bIdx = legal[0], max = -1000;
         legal.forEach(idx => { 
@@ -645,18 +637,22 @@
 
     function updateUI(s) {
       if (!s) return; if (s.stateVersion && s.stateVersion <= localStateVersion) return; localStateVersion = s.stateVersion || localStateVersion;
+      if (s.dice.rollId && s.dice.rollId !== lastSeenRollId) { lastSeenRollId = s.dice.rollId; syncDiceAnimation(s.dice.value); gameState = s; return; }
+      if (isDiceAnimating) return;
       if (lastPieces && s.status === 'playing') { let captured = false; COLORS.forEach(c => { s.pieces[c].forEach((p, i) => { if (p === -1 && lastPieces[c] && lastPieces[c][i] !== -1) captured = true; }); }); if (captured) audioHaptic.capture(); }
       lastPieces = JSON.parse(JSON.stringify(s.pieces));
-      if (s.status === 'gameOver' && lastStatus !== 'gameOver') { audioHaptic.gameEnd(); alert("GAME OVER! Check the leaderboard."); }
+      if (s.status === 'gameOver' && lastStatus !== 'gameOver') { audioHaptic.gameEnd(); alert("GAME OVER!"); }
       lastStatus = s.status;
       if (!isAnimating) { gameState = s; } else { const localPieces = gameState.pieces; gameState = s; gameState.pieces = localPieces; }
       document.getElementById('start-game-btn').classList.toggle('hidden', gameState.status !== 'waiting' || gameState.host !== myColor);
+      const db = document.getElementById('dice-button'); const isMyRoll = (gameState.currentTurn === myColor || gameMode === 'local') && !gameState.dice.hasRolled && !isAnimating && !isRequestPending;
+      db.classList.toggle('my-turn', isMyRoll); if (isMyRoll) db.style.boxShadow = `0 0 15px var(--${gameState.currentTurn}-solid)`; else db.style.boxShadow = '';
+      if (!gameState.dice.hasRolled) db.className = ''; else if (!isDiceAnimating) db.className = 'roll-' + gameState.dice.value;
       COLORS.forEach(c => {
         const h = document.getElementById(`hud-${c}`), n = document.getElementById(`name-${c}`), d = document.getElementById(`dice-container-${c}`);
         h.querySelector('.avatar').innerHTML = '👤'; const r = gameState.placements.indexOf(c) + 1; if (r > 0) h.querySelector('.avatar').innerHTML += `<div class="placement-badge badge-${r}">${r}${['st','nd','rd'][r-1]||'th'}</div>`;
         n.innerText = gameState.players[c] || 'Waiting...'; h.classList.toggle('active', gameState.currentTurn === c && gameState.status === 'playing');
-        if (gameState.currentTurn === c && gameState.status === 'playing' && !gameState.placements.includes(c)) { d.innerHTML = createDiceSVG(gameState.dice.value); const diceEl = d.querySelector('.dice'); if (diceEl && isRequestPending) diceEl.style.opacity = '0.5'; d.onclick = (c === myColor || gameMode === 'local') && !gameState.dice.hasRolled && !isAnimating && !isRequestPending ? rollDice : null; }
-        else d.innerHTML = '';
+        d.innerHTML = '';
       });
       if (!isAnimating) renderPieces(gameState);
     }
@@ -674,7 +670,7 @@
           if (pcs.length > 1 && p !== -1 && p < 57) { const idxInGroup = pcs.findIndex(x => x.c === c && x.i === i); const o = cS*0.18, os = [[-o,-o], [o,-o], [-o,o], [o,o]]; const [ox, oy] = os[idxInGroup%4]; tr = `translate(${ox}px, ${oy}px) scale(0.75)`; }
           el.style.top = t+'px'; el.style.left = l+'px'; el.style.width = el.style.height = (cS*0.8)+'px'; el.style.transform = tr;
           el.classList.remove('playable'); el.style.pointerEvents = 'none'; el.onclick = null;
-          if (!isAnimating && (s.currentTurn === myColor || gameMode === 'local' || (gameMode === 'ai' && s.currentTurn === myColor)) && c === s.currentTurn && s.dice.hasRolled && isMoveLegal(p, s.dice.value)) { el.classList.add('playable'); el.style.pointerEvents = 'auto'; el.onclick = () => movePiece(i); layer.style.pointerEvents = 'auto'; }
+          if (!isAnimating && !isDiceAnimating && (s.currentTurn === myColor || gameMode === 'local' || (gameMode === 'ai' && s.currentTurn === myColor)) && c === s.currentTurn && s.dice.hasRolled && isMoveLegal(p, s.dice.value)) { el.classList.add('playable'); el.style.pointerEvents = 'auto'; el.onclick = () => movePiece(i); layer.style.pointerEvents = 'auto'; }
         });
       });
     }

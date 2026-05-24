@@ -19,15 +19,6 @@ function generateRoomCode() {
 }
 const CACHE_TTL = 21600; // 6 hours
 
-/** STATE MANAGEMENT **/
-function getLock() { return LockService.getScriptLock(); }
-function getCache() { return CacheService.getScriptCache(); }
-function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-  return code;
-}
 function saveState(gameId, state) { 
   state.stateVersion = (state.stateVersion || 0) + 1;
   state.lastUpdate = Date.now(); 
@@ -47,7 +38,7 @@ function createGame(playerName, color) {
       host: color,
       players: { red: null, green: null, yellow: null, blue: null },
       currentTurn: color,
-      dice: { value: null, hasRolled: false },
+      dice: { value: null, hasRolled: false, rollId: null },
       pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] },
       consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 },
       placements: [],
@@ -113,6 +104,7 @@ function rollDice(gameId, requestingColor) {
     }
     
     const roll = Math.floor(Math.random() * 6) + 1;
+    state.dice.rollId = Date.now();
     if (roll === 6) state.consecutiveSixes[requestingColor]++;
     else state.consecutiveSixes[requestingColor] = 0;
 

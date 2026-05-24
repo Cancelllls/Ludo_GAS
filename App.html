@@ -65,10 +65,14 @@
     .player-slot.active { outline: 3px solid #333; }
     .dice-val { font-size: 40px; text-align: center; border: 2px solid #333; border-radius: 10px; width: 60px; height: 60px; line-height: 60px; margin: 0 auto; }
 
-    #login-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
-    .login-box { background: white; padding: 30px; border-radius: 15px; text-align: center; min-width: 300px; }
+    #login-screen, #reconnect-modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    #reconnect-modal { z-index: 200; }
+    .login-box, .modal-box { background: white; padding: 30px; border-radius: 15px; text-align: center; min-width: 300px; }
     .login-box input { display: block; width: 100%; margin: 10px 0; padding: 10px; font-size: 16px; box-sizing: border-box; }
     
+    .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 36px; height: 36px; border-radius: 50%; border-left-color: #09f; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -89,6 +93,14 @@
       </div>
       <input type="text" id="gameIdInput" placeholder="Room Code (empty to create)">
       <button class="btn btn-primary" onclick="initGame()">Enter Game</button>
+    </div>
+  </div>
+
+  <div id="reconnect-modal" class="hidden">
+    <div class="modal-box">
+      <h2>Reconnecting...</h2>
+      <p>Please wait while we restore your connection.</p>
+      <div class="spinner"></div>
     </div>
   </div>
 
@@ -123,6 +135,9 @@
     let myColor = null;
     let myName = null;
     let gameState = null;
+    let pollRetryCount = 0;
+    let backoffDelay = 1000;
+    let pollTimer = null;
 
     const COLORS = ['red', 'green', 'yellow', 'blue'];
     const SHARED_TRACK = [
@@ -223,14 +238,33 @@
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('room-code-display').innerText = currentGameId;
       updateUI(state);
-      setInterval(poll, 1500);
+      startPolling();
     }
 
     function onErr(e) { alert(e.message); }
 
+    function startPolling() {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(poll, backoffDelay);
+    }
+
     function poll() {
       if (!currentGameId) return;
-      google.script.run.withSuccessHandler(updateUI).getGameState(currentGameId);
+      google.script.run
+        .withSuccessHandler(state => {
+          pollRetryCount = 0;
+          backoffDelay = 1000;
+          document.getElementById('reconnect-modal').classList.add('hidden');
+          updateUI(state);
+          startPolling();
+        })
+        .withFailureHandler(err => {
+          pollRetryCount++;
+          backoffDelay = Math.min(backoffDelay * 2, 5000);
+          document.getElementById('reconnect-modal').classList.remove('hidden');
+          startPolling();
+        })
+        .getGameState(currentGameId);
     }
 
     function rollDice() {
@@ -266,33 +300,72 @@
       layer.innerHTML = '';
       layer.style.pointerEvents = 'none';
 
+      const positionGroups = {};
+
       COLORS.forEach(color => {
         state.pieces[color].forEach((pos, idx) => {
+          // Unique key for each board position
+          let posKey;
+          if (pos === -1) {
+            posKey = `base-${color}-${idx}`; // Bases are unique per piece
+          } else if (pos >= 0 && pos <= 51) {
+            posKey = `track-${getGlobalIndex(color, pos)}`;
+          } else if (pos >= 52 && pos <= 56) {
+            posKey = `home-${color}-${pos}`;
+          } else {
+            posKey = `finish`;
+          }
+          
+          if (!positionGroups[posKey]) positionGroups[posKey] = [];
+          positionGroups[posKey].push({ color, pos, idx });
+        });
+      });
+
+      Object.values(positionGroups).forEach(pieces => {
+        const count = pieces.length;
+
+        pieces.forEach((p, i) => {
           const piece = document.createElement('div');
-          piece.className = `piece ${color}`;
+          piece.className = `piece ${p.color}`;
           
           let coords;
-          if (pos === -1) {
-            coords = BASES[color][idx];
-          } else if (pos >= 0 && pos <= 51) {
-            coords = SHARED_TRACK[getGlobalIndex(color, pos)];
-          } else if (pos >= 52 && pos <= 56) {
-            coords = HOME_STRETCH[color][pos - 52];
+          if (p.pos === -1) {
+            coords = BASES[p.color][p.idx];
+          } else if (p.pos >= 0 && p.pos <= 51) {
+            coords = SHARED_TRACK[getGlobalIndex(p.color, p.pos)];
+          } else if (p.pos >= 52 && p.pos <= 56) {
+            coords = HOME_STRETCH[p.color][p.pos - 52];
           } else {
             coords = FINISH;
           }
           
           const cellSize = 600 / 15;
-          piece.style.top = (coords[0] * cellSize + cellSize * 0.1) + 'px';
-          piece.style.left = (coords[1] * cellSize + cellSize * 0.1) + 'px';
+          let top = coords[0] * cellSize + cellSize * 0.1;
+          let left = coords[1] * cellSize + cellSize * 0.1;
+          let transform = '';
+
+          // Clustering logic: Offset if more than 1 piece on the same square (excluding base)
+          if (count > 1 && p.pos !== -1 && p.pos !== 57) {
+            const offset = cellSize * 0.15;
+            const offsets = [
+              [-offset, -offset], [offset, -offset],
+              [-offset, offset], [offset, offset]
+            ];
+            const [offX, offY] = offsets[i % 4];
+            transform = `translate(${offX}px, ${offY}px) scale(0.8)`;
+          }
+
+          piece.style.top = top + 'px';
+          piece.style.left = left + 'px';
           piece.style.width = (cellSize * 0.8) + 'px';
           piece.style.height = (cellSize * 0.8) + 'px';
+          piece.style.transform = transform;
           
-          if (state.currentTurn === myColor && state.dice.hasRolled && color === myColor) {
-            if (isMoveLegal(pos, state.dice.value)) {
+          if (state.currentTurn === myColor && state.dice.hasRolled && p.color === myColor) {
+            if (isMoveLegal(p.pos, state.dice.value)) {
               piece.classList.add('can-move');
               piece.style.pointerEvents = 'auto';
-              piece.onclick = () => movePiece(idx);
+              piece.onclick = () => movePiece(p.idx);
               layer.style.pointerEvents = 'auto';
             }
           }

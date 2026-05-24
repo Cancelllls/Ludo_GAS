@@ -66,6 +66,7 @@ function createGame(playerName, color) {
         yellow: [-1, -1, -1, -1],
         blue: [-1, -1, -1, -1]
       },
+      consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 },
       status: 'waiting',
       lastUpdate: Date.now()
     };
@@ -129,14 +130,29 @@ function rollDice(gameId, requestingColor) {
     if (state.dice.hasRolled) throw new Error("Already rolled.");
     
     const roll = Math.floor(Math.random() * 6) + 1;
-    state.dice.value = roll;
-    state.dice.hasRolled = true;
     
-    // Check if player has any legal moves. If not, auto-rotate turn.
-    if (!hasLegalMoves(state, requestingColor, roll)) {
+    // Rule of Three 6s
+    if (roll === 6) {
+      state.consecutiveSixes[requestingColor]++;
+    } else {
+      state.consecutiveSixes[requestingColor] = 0;
+    }
+
+    if (state.consecutiveSixes[requestingColor] === 3) {
+      state.consecutiveSixes[requestingColor] = 0;
       state.dice.hasRolled = false;
       state.dice.value = null;
       state.currentTurn = getNextPlayer(state);
+    } else {
+      state.dice.value = roll;
+      state.dice.hasRolled = true;
+      
+      // Check if player has any legal moves. If not, auto-rotate turn.
+      if (!hasLegalMoves(state, requestingColor, roll)) {
+        state.dice.hasRolled = false;
+        state.dice.value = null;
+        state.currentTurn = getNextPlayer(state);
+      }
     }
     
     saveState(gameId, state);

@@ -328,6 +328,7 @@
     let pollTimer = null;
     let aiTimer = null;
     let localPlayerCount = 2;
+    let isAnimating = false;
 
     const COLORS = ['red', 'green', 'yellow', 'blue'];
     const SHARED_TRACK = [
@@ -353,6 +354,13 @@
       yellow: [[10.5,10.5], [10.5,12.5], [12.5,10.5], [12.5,12.5]]
     };
     const FINISH = [7,7];
+
+    function getPieceCoords(color, pos, idx) {
+      if (pos === -1) return BASES[color][idx];
+      if (pos >= 57) return FINISH;
+      if (pos >= 52) return HOME_STRETCH[color][pos - 52];
+      return SHARED_TRACK[getGlobalIndex(color, pos)];
+    }
 
     function buildBoard() {
       const board = document.getElementById('board');
@@ -507,7 +515,7 @@
 
     function rollDice() {
       const isMyTurn = (gameMode === 'online' && gameState.currentTurn === myColor) || (gameMode === 'local') || (gameMode === 'ai' && gameState.currentTurn === myColor);
-      if (!isMyTurn || gameState.dice.hasRolled || gameState.status !== 'playing') return;
+      if (!isMyTurn || gameState.dice.hasRolled || gameState.status !== 'playing' || isAnimating) return;
       const diceEl = document.getElementById('dice-main');
       if (diceEl) diceEl.classList.add('rolling');
       setTimeout(() => {
@@ -517,8 +525,43 @@
     }
 
     function movePiece(index) {
-      if (gameMode === 'online') google.script.run.withSuccessHandler(updateUI).withFailureHandler(onErr).movePiece(currentGameId, myColor, index);
-      else executeLocalMove(gameState.currentTurn, index);
+      if (!gameState || isAnimating) return;
+      const color = gameState.currentTurn;
+      const currentPos = gameState.pieces[color][index];
+      const roll = gameState.dice.value;
+      const targetPos = (currentPos === -1) ? 0 : currentPos + roll;
+      if (gameMode === 'online') {
+        const pieceEl = document.getElementById(`piece-${color}-${index}`);
+        if (pieceEl) pieceEl.classList.remove('playable');
+        animatePieceHop(color, index, currentPos, targetPos);
+        google.script.run.withSuccessHandler(updateUI).withFailureHandler(onErr).movePiece(currentGameId, myColor, index);
+      } else {
+        animatePieceHop(color, index, currentPos, targetPos).then(() => { executeLocalMove(color, index); });
+      }
+    }
+
+    async function animatePieceHop(color, pieceIndex, startIndex, targetIndex) {
+      isAnimating = true;
+      const pieceEl = document.getElementById(`piece-${color}-${pieceIndex}`);
+      if (!pieceEl) { isAnimating = false; return; }
+      let path = [];
+      if (startIndex === -1) path = [0];
+      else { for (let i = startIndex + 1; i <= targetIndex; i++) path.push(i); }
+      const bW = document.getElementById('board-container').clientWidth, cS = bW / 15;
+      for (const pos of path) {
+        const coords = getPieceCoords(color, pos, pieceIndex);
+        const t = coords[0] * cS + cS * 0.1, l = coords[1] * cS + cS * 0.1;
+        pieceEl.style.transition = 'all 0.15s linear';
+        pieceEl.style.top = t + 'px'; pieceEl.style.left = l + 'px';
+        pieceEl.style.zIndex = "100";
+        const baseTransform = pieceEl.style.transform.split(' translateY')[0].split(' scale')[0];
+        pieceEl.style.transform = `${baseTransform} translateY(-15px) scale(1.1)`;
+        await new Promise(r => setTimeout(r, 75));
+        pieceEl.style.transform = `${baseTransform} translateY(0px) scale(1)`;
+        await new Promise(r => setTimeout(r, 75));
+      }
+      isAnimating = false; pieceEl.style.zIndex = "10";
+      if (gameState) updateUI(gameState);
     }
 
     function executeLocalRoll(color) {
@@ -605,7 +648,13 @@
             if (pos === -1 && roll === 6) score += 60;
             if (score > maxScore) { maxScore = score; bestIdx = idx; }
           });
-          aiTimer = setTimeout(() => executeLocalMove(color, bestIdx), 800);
+          const currentPos = gameState.pieces[color][bestIdx];
+          const targetPos = (currentPos === -1) ? 0 : currentPos + roll;
+          aiTimer = setTimeout(() => {
+            animatePieceHop(color, bestIdx, currentPos, targetPos).then(() => {
+              executeLocalMove(color, bestIdx);
+            });
+          }, 800);
         } else {
           // Fallback if no legal moves but hasRolled is true (should be handled by executeLocalRoll, but just in case)
           gameState.dice.hasRolled = false; gameState.dice.value = null;
@@ -628,7 +677,7 @@
           diceCont.onclick = (c === myColor && !state.dice.hasRolled && gameMode !== 'ai') || (gameMode === 'local' && !state.dice.hasRolled) || (gameMode === 'ai' && c === myColor && !state.dice.hasRolled) ? rollDice : null;
         } else diceCont.innerHTML = '';
       });
-      renderPieces(state);
+      if (!isAnimating) renderPieces(state);
     }
 
     function renderPieces(state) {
@@ -646,8 +695,9 @@
         const count = pieces.length;
         pieces.forEach((p, i) => {
           const piece = document.createElement('div');
+          piece.id = `piece-${p.color}-${p.idx}`;
           piece.className = `piece ${p.color}`;
-          let coords = (p.pos === -1) ? BASES[p.color][p.idx] : (p.pos >= 52 && p.pos < 57) ? HOME_STRETCH[p.color][p.pos - 52] : (p.pos >= 57) ? FINISH : SHARED_TRACK[getGlobalIndex(p.color, p.pos)];
+          let coords = getPieceCoords(p.color, p.pos, p.idx);
           const bW = document.getElementById('board-container').clientWidth, cS = bW / 15;
           let t = coords[0] * cS + cS * 0.1, l = coords[1] * cS + cS * 0.1, tr = '';
           if (count > 1 && p.pos !== -1 && p.pos < 57) {

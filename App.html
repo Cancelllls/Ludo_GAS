@@ -564,48 +564,82 @@
        document.getElementById('footer-controls').classList.remove('hidden');
        document.getElementById('room-code-display').innerText = "VS COMPUTER";
        const p = { red: null, green: null, yellow: null, blue: null };
-       p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = c.charAt(0).toUpperCase() + c.slice(1) + " Bot"; });
-       gameState = { gameId: 'AI_MATCH', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
+       const bots = { red: false, green: false, yellow: false, blue: false };
+       p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) { p[c] = c.charAt(0).toUpperCase() + c.slice(1) + " Bot"; bots[c] = true; } });
+       gameState = { gameId: 'AI_MATCH', players: p, bots: bots, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
        renderPieces(gameState);
        updateUI(gameState); 
-       if (gameState.currentTurn !== myColor) checkAITurn();
+       if (gameState.bots[gameState.currentTurn]) setTimeout(executeAITurn, 1000);
     }
 
-    function initLocalGame() {
-      cleanupEngine();
-      document.getElementById('login-screen').classList.add('hidden'); 
-      document.getElementById('game-wrapper').classList.remove('hidden'); 
-      document.getElementById('footer-controls').classList.remove('hidden');
-      document.getElementById('room-code-display').innerText = gameMode.toUpperCase();
-      const p = { red: null, green: null, yellow: null, blue: null };
-      if (gameMode === 'local') { for (let i = 0; i < localPlayerCount; i++) p[COLORS[i]] = `Player ${i+1}`; myColor = 'all'; }
-      else { myColor = document.getElementById('aiPlayerColor').value; p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = "Bot " + c.toUpperCase(); }); }
-      gameState = { gameId: 'LOCAL', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing' };
-      renderPieces(gameState);
-      updateUI(gameState); checkAITurn();
+    function advanceTurn() {
+      if (!gameState || gameState.status !== 'playing') return;
+      const idx = COLORS.indexOf(gameState.currentTurn);
+      let found = false;
+      for (let i = 1; i < 4; i++) {
+        const next = COLORS[(idx + i) % 4];
+        if (gameState.players[next] && !gameState.placements.includes(next)) {
+          gameState.currentTurn = next;
+          found = true;
+          break;
+        }
+      }
+      gameState.dice.hasRolled = false; gameState.dice.value = null;
+      updateUI(gameState);
+      if (found && gameState.bots && gameState.bots[gameState.currentTurn]) setTimeout(executeAITurn, 800);
     }
 
-    /** HELPERS **/
-    function getPieceCoords(color, pos, idx) { if(pos===-1) return BASES[color][idx]; if(pos>=57) return FINISH; if(pos>=52) return HOME_STRETCH[color][pos-52]; return SHARED_TRACK[getGlobalIndex(color, pos)]; }
-    function getGlobalIndex(color, local) { const offsets = { red: 1, green: 14, yellow: 27, blue: 40 }; return (local + offsets[color]) % 52; }
-    function getNextLocalPlayer() { const idx = COLORS.indexOf(gameState.currentTurn); for(let i=1;i<4;i++){ const n=COLORS[(idx+i)%4]; if(gameState.players[n]&&!gameState.placements.includes(n)) return n; } return gameState.currentTurn; }
-    function hasLegalMovesLocal(color, roll) { return gameState.pieces[color].some(p => (p===-1)?(roll===6):(p<57&&p+roll<=57)); }
-    function isMoveLegal(p, r) { return (p===-1)?(r===6):(p<57&&p+r<=57); }
-    function checkAITurn() { if (!gameState || gameMode !== 'ai' || gameState.status !== 'playing') return; if (gameState.currentTurn !== myColor) { if (aiTimer) clearTimeout(aiTimer); aiTimer = setTimeout(executeAITurn, 1000); } }
-    
-    let aiSafetyBreaker = 0;
+    function executeLocalRoll(color) {
+      const r = Math.floor(Math.random()*6)+1; 
+      gameState.dice.value = r; gameState.dice.hasRolled = true;
+      if(r === 6) gameState.consecutiveSixes[color]++; else gameState.consecutiveSixes[color] = 0;
+      if (gameState.consecutiveSixes[color] === 3) { 
+        gameState.consecutiveSixes[color] = 0; showToast("THREE SIXES! TURN PASSED");
+        setTimeout(advanceTurn, 1000);
+      } else { 
+        updateUI(gameState); 
+        if(!hasLegalMovesLocal(color, r)) { showToast("NO LEGAL MOVES"); setTimeout(advanceTurn, 1000); }
+      }
+    }
+
+    function executeLocalMove(color, idx) {
+      const roll = gameState.dice.value, cur = gameState.pieces[color][idx], next = (cur===-1)?0:cur+roll;
+      let captured = false;
+      if (next >= 0 && next <= 51) { 
+        const gIdx = getGlobalIndex(color, next); const coords = SHARED_TRACK[gIdx];
+        const cell = document.getElementById(`cell-${coords[0]}-${coords[1]}`);
+        if (cell && !cell.classList.contains('safe-zone')) {
+           COLORS.forEach(c => { if (c !== color) { gameState.pieces[c] = gameState.pieces[c].map(p => { if (p >= 0 && p <= 51 && getGlobalIndex(c, p) === gIdx) { captured = true; return -1; } return p; }); } }); 
+        }
+      }
+      gameState.pieces[color][idx] = next; 
+      const finished = gameState.pieces[color].filter(p => p === 57).length;
+      if (finished === 4 && !gameState.placements.includes(color)) gameState.placements.push(color);
+      const active = Object.keys(gameState.players).filter(c => gameState.players[c]);
+      if (gameState.placements.length >= active.length - 1) { gameState.status = 'gameOver'; updateUI(gameState); }
+      else { 
+        if (roll === 6 || captured || finished === 4) {
+           gameState.dice.hasRolled = false; gameState.dice.value = null; updateUI(gameState);
+           if (gameMode === 'ai' && gameState.bots[color]) setTimeout(executeAITurn, 1000);
+        } else advanceTurn();
+      }
+    }
+
     function executeAITurn() {
-      if (!gameState || gameMode !== 'ai' || gameState.currentTurn === myColor || gameState.status !== 'playing') return;
-      aiSafetyBreaker++; if (aiSafetyBreaker > 50) { aiSafetyBreaker = 0; gameState.dice.hasRolled = false; gameState.dice.value = null; gameState.currentTurn = getNextLocalPlayer(); updateUI(gameState); return; }
-      const color = gameState.currentTurn;
-      if (!gameState.dice.hasRolled) executeLocalRoll(color);
-      else {
-        const roll = gameState.dice.value, legal = []; gameState.pieces[color].forEach((p, i) => { if (isMoveLegal(p, roll)) legal.push(i); });
-        if (legal.length > 0) {
-          aiSafetyBreaker = 0; let bIdx = legal[0], max = -1000;
-          legal.forEach(idx => { const p = gameState.pieces[color][idx], next = (p===-1)?0:p+roll; let s = next; if (next >= 0 && next <= 51) { const g = getGlobalIndex(color, next); COLORS.forEach(c => { if(c!==color && gameState.pieces[c].some(cp => cp>=0&&cp<=51&&getGlobalIndex(c,cp)===g)) s += 100; }); } if (next === 57) s += 80; if (p === -1 && roll === 6) s += 60; if (s > max) { max = s; bIdx = idx; } });
-          aiTimer = setTimeout(() => { animatePieceHop(color, bIdx, gameState.pieces[color][bIdx], (gameState.pieces[color][bIdx]===-1)?0:gameState.pieces[color][bIdx]+roll).then(() => executeLocalMove(color, bIdx)); }, 800);
-        } else { showToast("AI: NO MOVES"); setTimeout(() => { if(!gameState) return; gameState.dice.hasRolled = false; gameState.dice.value = null; gameState.currentTurn = getNextLocalPlayer(); updateUI(gameState); checkAITurn(); }, 1000); }
+      if (!gameState || gameState.status !== 'playing') return;
+      const color = gameState.currentTurn; if (!gameState.bots || !gameState.bots[color]) return;
+      executeLocalRoll(color);
+      if (!gameState.dice.hasRolled) return;
+      const roll = gameState.dice.value, legal = []; 
+      gameState.pieces[color].forEach((p, i) => { if (isMoveLegal(p, roll)) legal.push(i); });
+      if (legal.length > 0) {
+        let bIdx = legal[0], max = -1000;
+        legal.forEach(idx => { 
+          const p = gameState.pieces[color][idx], next = (p===-1)?0:p+roll; let s = next; 
+          if (next >= 0 && next <= 51) { const g = getGlobalIndex(color, next); COLORS.forEach(c => { if(c!==color && gameState.pieces[c].some(cp => cp>=0&&cp<=51&&getGlobalIndex(c,cp)===g)) s += 100; }); } 
+          if (next === 57) s += 80; if (p === -1 && roll === 6) s += 60; if (s > max) { max = s; bIdx = idx; } 
+        });
+        setTimeout(() => { const cur = gameState.pieces[color][bIdx]; animatePieceHop(color, bIdx, cur, (cur===-1)?0:cur+roll).then(() => executeLocalMove(color, bIdx)); }, 500);
       }
     }
 

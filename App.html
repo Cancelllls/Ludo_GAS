@@ -14,34 +14,40 @@
       --hud-bg: rgba(255, 255, 255, 0.9);
       --glass-border: rgba(255, 255, 255, 0.4);
       
-      --red-solid: #e74c3c;
-      --green-solid: #2ecc71;
-      --yellow-solid: #f1c40f;
-      --blue-solid: #3498db;
+      --red-solid: #ff3333;
+      --green-solid: #00e64d;
+      --blue-solid: #3385ff;
+      --yellow-solid: #ffea00;
       
-      --red-grad: #e74c3c;
-      --green-grad: #2ecc71;
-      --yellow-grad: #f1c40f;
-      --blue-grad: #3498db;
+      --red-grad: var(--red-solid);
+      --green-grad: var(--green-solid);
+      --yellow-grad: var(--yellow-solid);
+      --blue-grad: var(--blue-solid);
       
       --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       --star-fill: rgba(0,0,0,0.1);
     }
 
     body[data-theme="dark"] {
-      --bg-main: #121212;
-      --board-bg: #1e1e1e;
-      --grid-border: #333333;
+      --bg-main: #050505; /* True Black background */
+      --board-bg: #121212; /* Slightly elevated black */
+      --grid-border: #2a2a2a; /* Sharp subtle lines */
       --text-primary: #ffffff;
-      --hud-bg: #252525;
-      --glass-border: #444444;
-      --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-      --star-fill: rgba(255,255,255,0.1);
+      --hud-bg: #1a1a1a; /* Clean solid grey panels */
+      --glass-border: #333333;
+      --shadow: 0 4px 25px rgba(0, 0, 0, 0.8);
+      --star-fill: rgba(255,255,255,0.15);
       
-      --red-grad: #c0392b;
-      --green-grad: #27ae60;
-      --yellow-grad: #d4ac0d;
-      --blue-grad: #2980b9;
+      /* Vibrant Saturated Primaries for Dark Mode */
+      --red-solid: #ff3333;
+      --green-solid: #00e64d;
+      --blue-solid: #3385ff;
+      --yellow-solid: #ffea00;
+      
+      --red-grad: #2a0000; /* Deep matte base */
+      --green-grad: #002a00;
+      --yellow-grad: #2a2a00;
+      --blue-grad: #00002a;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -76,13 +82,16 @@
       display: flex; flex-direction: column; align-items: center;
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); min-width: 130px; box-shadow: var(--shadow);
     }
-    .hud.active { transform: scale(1.05); border-color: var(--text-primary); }
+    .hud.active { transform: scale(1.05); border-color: var(--text-primary); box-shadow: 0 0 20px rgba(255,255,255,0.1); }
 
     .avatar {
       width: 60px; height: 60px; border-radius: 12px; border: 2px solid var(--glass-border);
       background: #34495e; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; position: relative;
       font-size: 24px;
     }
+    
+    body[data-theme="dark"] .avatar { background: #121212; }
+
     .placement-badge { 
       position: absolute; top: -12px; right: -12px; color: #333; padding: 4px 10px; 
       border-radius: 8px; font-size: 11px; font-weight: 800; border: 2px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
@@ -122,10 +131,10 @@
       display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; padding: 12px; gap: 12px;
       box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
     }
-    .base-red .base-inner { border: 1px solid var(--red-solid); }
-    .base-green .base-inner { border: 1px solid var(--green-solid); }
-    .base-blue .base-inner { border: 1px solid var(--blue-solid); }
-    .base-yellow .base-inner { border: 1px solid var(--yellow-solid); }
+    .base-red .base-inner { border: 2px solid var(--red-solid); }
+    .base-green .base-inner { border: 2px solid var(--green-solid); }
+    .base-blue .base-inner { border: 2px solid var(--blue-solid); }
+    .base-yellow .base-inner { border: 2px solid var(--yellow-solid); }
     
     .slot { border-radius: 50%; border: 1px solid var(--grid-border); background: rgba(0,0,0,0.02); }
 
@@ -146,20 +155,26 @@
     .piece {
       border-radius: 50%; position: absolute; z-index: 10;
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      cursor: pointer; border: 2px solid rgba(255,255,255,0.3);
-      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      cursor: pointer; border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
     .piece.red { background: var(--red-solid); }
     .piece.green { background: var(--green-solid); }
     .piece.yellow { background: var(--yellow-solid); }
     .piece.blue { background: var(--blue-solid); }
     
+    body[data-theme="dark"] .piece { border-width: 2px; }
+    body[data-theme="dark"] .piece.red { border-color: #ffcccc; box-shadow: 0 0 15px rgba(255,51,51,0.4); }
+    body[data-theme="dark"] .piece.green { border-color: #ccffdd; box-shadow: 0 0 15px rgba(0,230,77,0.4); }
+    body[data-theme="dark"] .piece.blue { border-color: #cce0ff; box-shadow: 0 0 15px rgba(51,133,255,0.4); }
+    body[data-theme="dark"] .piece.yellow { border-color: #ffffcc; box-shadow: 0 0 15px rgba(255,234,0,0.4); }
+
     .piece.playable { animation: bounce 0.8s infinite; z-index: 30; border-color: white; }
-    @keyframes bounce { 0%, 100% { transform: scale(1); filter: brightness(1.1); } 50% { transform: scale(1.1) translateY(-10px); } }
+    @keyframes bounce { 0%, 100% { transform: scale(1); filter: brightness(1.2); } 50% { transform: scale(1.1) translateY(-10px); } }
 
     #login-screen, #reconnect-modal { 
       position: fixed; top:0; left:0; width:100%; height:100%; 
-      background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(15px);
       z-index: 1000; display: flex; align-items: center; justify-content: center;
     }
     .modal-box { 
@@ -177,8 +192,10 @@
     
     #footer-controls { background: var(--hud-bg); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 40px; border: 1px solid var(--glass-border); color: var(--text-primary); }
 
-    .color-btn { width: 60px; height: 60px; border-radius: 12px; border: 4px solid transparent; cursor: pointer; transition: 0.2s; }
-    .color-btn.selected { border-color: white; transform: scale(1.1); box-shadow: 0 0 15px rgba(255,255,255,0.4); }
+    .color-btn { width: 65px; height: 65px; border-radius: 15px; border: 4px solid transparent; cursor: pointer; transition: 0.2s; box-shadow: var(--shadow); }
+    .color-btn.selected { border-color: var(--text-primary); transform: scale(1.1); }
+
+    .difficulty-slider { width: 100%; margin: 15px 0; accent-color: #f39c12; }
 
     .hidden { display: none !important; }
 
@@ -242,24 +259,19 @@
 
       <!-- AI Config -->
       <div id="ai-config" class="hidden">
-         <p>AI Difficulty:</p>
-         <select id="aiDifficulty" style="margin-bottom:15px;" onchange="updateBotRoster(selectedAIColor)">
-           <option value="1">Level 1 (Easy)</option>
-           <option value="2">Level 2 (Normal)</option>
-           <option value="3">Level 3 (Hard)</option>
-           <option value="4">Level 4 (Expert)</option>
-         </select>
+         <p>AI Strength: <span id="difficulty-label" style="font-weight:800; color:#f39c12;">Normal</span></p>
+         <input type="range" id="aiDifficulty" class="difficulty-slider" min="1" max="4" value="2" oninput="updateBotRoster(selectedAIColor)">
          
          <p>Play As:</p>
-         <div style="display:flex; justify-content:center; gap:10px; margin:10px 0;">
-           <div class="color-btn" style="background:var(--red-solid)" onclick="selectAIColor('red')"></div>
-           <div class="color-btn" style="background:var(--green-solid)" onclick="selectAIColor('green')"></div>
-           <div class="color-btn" style="background:var(--yellow-solid)" onclick="selectAIColor('yellow')"></div>
-           <div class="color-btn" style="background:var(--blue-solid)" onclick="selectAIColor('blue')"></div>
+         <div style="display:flex; justify-content:center; gap:12px; margin:15px 0;">
+           <div class="color-btn" id="btn-red" style="background:var(--red-solid)" onclick="selectAIColor('red')"></div>
+           <div class="color-btn" id="btn-green" style="background:var(--green-solid)" onclick="selectAIColor('green')"></div>
+           <div class="color-btn" id="btn-yellow" style="background:var(--yellow-solid)" onclick="selectAIColor('yellow')"></div>
+           <div class="color-btn" id="btn-blue" style="background:var(--blue-solid)" onclick="selectAIColor('blue')"></div>
          </div>
 
-         <div style="text-align:left; margin-top:20px; background:rgba(0,0,0,0.05); padding:15px; border-radius:12px;">
-            <p style="margin:0 0 10px 0; font-weight:800; font-size:12px; opacity:0.6;">BOT ROSTER:</p>
+         <div style="text-align:left; margin-top:20px; background:rgba(0,0,0,0.05); padding:15px; border-radius:12px; border: 1px solid var(--grid-border);">
+            <p style="margin:0 0 10px 0; font-weight:800; font-size:12px; opacity:0.6; text-transform:uppercase; letter-spacing:1px;">Opponents:</p>
             <div id="bot-roster-list" style="font-size:14px; font-weight:600;">
                <!-- Populated by JS -->
             </div>
@@ -436,50 +448,53 @@
     function backToModes() { document.getElementById('mode-selection').classList.remove('hidden'); document.getElementById('online-lobby').classList.add('hidden'); document.getElementById('local-setup').classList.add('hidden'); document.getElementById('game-wrapper').classList.add('hidden'); document.getElementById('footer-controls').classList.add('hidden'); }
     function setLocalPlayerCount(n) { localPlayerCount = n; document.querySelectorAll('#local-players-config .btn').forEach(b => { if (b.innerText.length === 1) b.style.opacity = (parseInt(b.innerText) === n) ? "1" : "0.5"; }); }
     function showLocalSetup(m) { 
-      gameMode = m; 
-      document.getElementById('mode-selection').classList.add('hidden'); 
-      document.getElementById('local-setup').classList.remove('hidden'); 
-      document.getElementById('local-setup-title').innerText = (m === 'ai') ? 'CHALLENGE AI' : 'PASS & PLAY'; 
-      document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); 
-      document.getElementById('ai-config').classList.toggle('hidden', m !== 'ai'); 
-      if (m === 'ai') selectAIColor('red');
+       gameMode = m; 
+       document.getElementById('mode-selection').classList.add('hidden'); 
+       document.getElementById('local-setup').classList.remove('hidden'); 
+       document.getElementById('local-setup-title').innerText = (m === 'ai') ? 'CHALLENGE AI' : 'PASS & PLAY'; 
+       document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); 
+       document.getElementById('ai-config').classList.toggle('hidden', m !== 'ai'); 
+       if (m === 'ai') selectAIColor('red');
     }
 
     function selectAIColor(c) {
-      selectedAIColor = c;
-      document.querySelectorAll('.color-btn').forEach(b => {
-        b.classList.toggle('selected', b.style.background.includes(c));
-      });
-      updateBotRoster(c);
+       selectedAIColor = c;
+       document.querySelectorAll('.color-btn').forEach(b => {
+          b.classList.toggle('selected', b.id === `btn-${c}`);
+       });
+       updateBotRoster(c);
     }
 
     function updateBotRoster(userColor) {
-      const roster = document.getElementById('bot-roster-list'); roster.innerHTML = '';
-      const dSelect = document.getElementById('aiDifficulty');
-      const diff = dSelect.options[dSelect.selectedIndex].text.split('(')[1].split(')')[0];
-      COLORS.forEach(c => {
-        if (c !== userColor) {
-          const item = document.createElement('div');
-          item.style = `color: var(--${c}-solid); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;`;
-          item.innerHTML = `<div style="width:10px; height:10px; border-radius:50%; background:currentColor;"></div> Bot ${c.toUpperCase()} (${diff})`;
-          roster.appendChild(item);
-        }
-      });
+       const roster = document.getElementById('bot-roster-list'); roster.innerHTML = '';
+       const val = document.getElementById('aiDifficulty').value;
+       const labels = { "1": "Easy", "2": "Normal", "3": "Hard", "4": "Expert" };
+       const diffText = labels[val];
+       document.getElementById('difficulty-label').innerText = diffText;
+       
+       COLORS.forEach(c => {
+          if (c !== userColor) {
+             const item = document.createElement('div');
+             item.style = `color: var(--${c}-solid); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;`;
+             item.innerHTML = `<div style="width:10px; height:10px; border-radius:50%; background:currentColor; box-shadow: 0 0 10px currentColor;"></div> ${c.charAt(0).toUpperCase() + c.slice(1)} Bot <span style="opacity:0.6; font-size:11px; margin-left:auto;">${diffText}</span>`;
+             roster.appendChild(item);
+          }
+       });
     }
 
     function startAIGame() {
-      gameMode = 'ai'; myColor = selectedAIColor;
-      const difficulty = parseInt(document.getElementById('aiDifficulty').value);
-      cleanupEngine();
-      document.getElementById('login-screen').classList.add('hidden'); 
-      document.getElementById('game-wrapper').classList.remove('hidden'); 
-      document.getElementById('footer-controls').classList.remove('hidden');
-      document.getElementById('room-code-display').innerText = "VS COMPUTER";
-      const p = { red: null, green: null, yellow: null, blue: null };
-      p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = "Bot " + c.toUpperCase(); });
-      gameState = { gameId: 'AI_MATCH', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
-      updateUI(gameState); 
-      if (gameState.currentTurn !== myColor) checkAITurn();
+       gameMode = 'ai'; myColor = selectedAIColor;
+       const difficulty = parseInt(document.getElementById('aiDifficulty').value);
+       cleanupEngine();
+       document.getElementById('login-screen').classList.add('hidden'); 
+       document.getElementById('game-wrapper').classList.remove('hidden'); 
+       document.getElementById('footer-controls').classList.remove('hidden');
+       document.getElementById('room-code-display').innerText = "VS COMPUTER";
+       const p = { red: null, green: null, yellow: null, blue: null };
+       p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = c.charAt(0).toUpperCase() + c.slice(1) + " Bot"; });
+       gameState = { gameId: 'AI_MATCH', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
+       updateUI(gameState); 
+       if (gameState.currentTurn !== myColor) checkAITurn();
     }
     
     function initOnlineGame() {

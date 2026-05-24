@@ -258,158 +258,127 @@
       gameEnd() { this.beep(400, 'triangle', 0.8, 0.3); if(navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 500]); }
     };
 
+    /** STATE & NETWORKING **/
     let currentGameId = null, myColor = null, myName = null, gameState = null, gameMode = 'online';
     let pollTimer = null, aiTimer = null, localPlayerCount = 2, isAnimating = false, isCreating = true;
-    let pollRetryCount = 0, backoffDelay = 1000;
+    let pollRetryCount = 0, backoffDelay = 1000, localStateVersion = 0;
+    let isRequestPending = false, retryTimeout = null;
     let lastStatus = null, lastPieces = null;
-    let localStateVersion = 0;
-    let isRequestPending = false;
-    let retryTimeout = null;
 
+    const connectivityHUD = {
+      update(status) {
+        const colors = { online: '#27ae60', busy: '#f1c40f', error: '#e74c3c' };
+        let dot = document.getElementById('conn-dot');
+        if (!dot) {
+          const footer = document.getElementById('footer-controls');
+          if (!footer) return;
+          const hud = document.createElement('div');
+          hud.id = 'conn-hud';
+          hud.style = 'display:flex; align-items:center; gap:5px; font-size:12px; font-weight:bold; color: white; margin-right: 15px;';
+          hud.innerHTML = `<div id="conn-dot" style="width:10px; height:10px; border-radius:50%; background:${colors.online}"></div> <span id="conn-text">ONLINE</span>`;
+          footer.prepend(hud);
+          dot = document.getElementById('conn-dot');
+        }
+        dot.style.background = colors[status] || colors.online;
+        document.getElementById('conn-text').innerText = status.toUpperCase();
+      }
+    };
+
+    const COLORS = ['red', 'green', 'yellow', 'blue'];
+    const SHARED_TRACK = [[6,0], [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6], [0,7], [0,8], [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14], [7,14], [8,14], [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8], [14,7], [14,6], [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], [7,0]];
+    const HOME_STRETCH = { red: [[7,1], [7,2], [7,3], [7,4], [7,5]], green: [[1,7], [2,7], [3,7], [4,7], [5,7]], yellow: [[7,13], [7,12], [7,11], [7,10], [7,9]], blue: [[13,7], [12,7], [11,7], [10,7], [9,7]] };
+    const BASES = { red: [[1.5,1.5], [1.5,3.5], [3.5,1.5], [3.5,3.5]], green: [[1.5,10.5], [1.5,13.5], [3.5,10.5], [3.5,13.5]], blue: [[10.5,1.5], [10.5,3.5], [12.5,1.5], [12.5,3.5]], yellow: [[10.5,10.5], [10.5,13.5], [12.5,10.5], [12.5,13.5]] };
+    const FINISH = [7,7];
+
+    /** ENGINE CORE **/
     function handleServerError(res, originalAction = null) {
       isRequestPending = false;
       connectivityHUD.update('error');
-      
       if (res && res.error === "SERVER_BUSY") {
         showToast("Server busy. Retrying...");
         if (retryTimeout) clearTimeout(retryTimeout);
-        retryTimeout = setTimeout(() => {
-          if (originalAction) originalAction();
-          else poll();
-        }, 1000);
+        retryTimeout = setTimeout(() => { if (originalAction) originalAction(); else poll(); }, 1000);
         return;
       }
-
       if (res && res.syncRequired) {
         showToast("Sync required. Refreshing board...");
-        isAnimating = false; // Break the animation lock
-        poll();
+        isAnimating = false; poll();
         return;
       }
-
       console.error("Critical Server Error:", res ? res.error : "Unknown");
       startPolling();
     }
 
-    function onErr(e) { 
-      isRequestPending = false;
-      connectivityHUD.update('error');
-      console.error("Network Exception:", e);
-      startPolling();
-    }
+    function onErr(e) { isRequestPending = false; connectivityHUD.update('error'); console.error("Network Exception:", e); startPolling(); }
 
     function cleanupEngine() {
       if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
       if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
-      
-      isAnimating = false;
-      isRequestPending = false;
-      localStateVersion = 0;
-      lastStatus = null;
-      lastPieces = null;
-      
-      document.querySelectorAll('.piece').forEach(p => {
-        p.dataset.animating = 'false';
-        p.classList.remove('playable');
-        p.onclick = null;
-      });
+      isAnimating = false; isRequestPending = false; localStateVersion = 0; lastStatus = null; lastPieces = null;
+      document.querySelectorAll('.piece').forEach(p => { p.dataset.animating = 'false'; p.classList.remove('playable'); p.onclick = null; });
       connectivityHUD.update('online');
     }
 
     function showToast(msg) {
-      const existing = document.getElementById('toast-msg');
-      if (existing) existing.remove();
-      const toast = document.createElement('div');
-      toast.id = 'toast-msg';
+      const existing = document.getElementById('toast-msg'); if (existing) existing.remove();
+      const toast = document.createElement('div'); toast.id = 'toast-msg';
       toast.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(223, 107, 24, 0.9); color:white; padding:12px 24px; border-radius:12px; z-index:3000; font-weight:bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); pointer-events:none;';
-      toast.innerText = msg;
-      document.body.appendChild(toast);
+      toast.innerText = msg; document.body.appendChild(toast);
       setTimeout(() => { if (toast.parentNode) toast.remove(); }, 2500);
     }
-    const SHARED_TRACK = [
-      [6,0], [6,1], [6,2], [6,3], [6,4], [6,5], [5,6], [4,6], [3,6], [2,6], [1,6], [0,6],
-      [0,7],
-      [0,8], [1,8], [2,8], [3,8], [4,8], [5,8], [6,9], [6,10], [6,11], [6,12], [6,13], [6,14],
-      [7,14],
-      [8,14], [8,13], [8,12], [8,11], [8,10], [8,9], [9,8], [10,8], [11,8], [12,8], [13,8], [14,8],
-      [14,7],
-      [14,6], [13,6], [12,6], [11,6], [10,6], [9,6], [8,5], [8,4], [8,3], [8,2], [8,1], [8,0], [7,0]
-    ];
-    const HOME_STRETCH = {
-      red: [[7,1], [7,2], [7,3], [7,4], [7,5]], green: [[1,7], [2,7], [3,7], [4,7], [5,7]],
-      yellow: [[7,13], [7,12], [7,11], [7,10], [7,9]], blue: [[13,7], [12,7], [11,7], [10,7], [9,7]]
-    };
-    const BASES = {
-      red: [[1.5,1.5], [1.5,3.5], [3.5,1.5], [3.5,3.5]], green: [[1.5,10.5], [1.5,13.5], [3.5,10.5], [3.5,13.5]],
-      blue: [[10.5,1.5], [10.5,3.5], [12.5,1.5], [12.5,3.5]], yellow: [[10.5,10.5], [10.5,13.5], [12.5,10.5], [12.5,13.5]]
-    };
-    const FINISH = [7,7];
 
-    function buildBoard() {
-      const board = document.getElementById('board'); board.innerHTML = '';
-      const star = `<svg class="star-icon" viewBox="0 0 512 512"><path d="M512 198.5L344.5 174.1 256 21.3l-88.5 152.8L0 198.5l121.3 118.1L92.7 482.7 256 397l163.3 85.7-28.6-166.1z"/></svg>`;
-      for (let r = 0; r < 15; r++) {
-        for (let c = 0; c < 15; c++) {
-          const cell = document.createElement('div'); cell.className = 'cell'; cell.id = `cell-${r}-${c}`;
-          if (r === 7 && c > 0 && c < 6) cell.classList.add('red');
-          if (c === 7 && r > 0 && r < 6) cell.classList.add('green');
-          if (r === 7 && c > 8 && c < 14) cell.classList.add('yellow');
-          if (c === 7 && r > 8 && r < 14) cell.classList.add('blue');
-          if ((r===6&&c===1)||(r===1&&c===8)||(r===8&&c===13)||(r===13&&c===6)) { cell.classList.add('safe'); cell.innerHTML = star; }
-          const safe = [[6,2], [2,8], [8,12], [12,6]];
-          if (safe.some(co => co[0]===r && co[1]===c)) { cell.classList.add('safe'); cell.innerHTML = star; }
-          board.appendChild(cell);
-        }
-      }
-      board.insertAdjacentHTML('beforeend', `<div class="base base-red"><div class="base-inner"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div></div><div class="base base-green"><div class="base-inner"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div></div><div class="base base-blue"><div class="base-inner"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div></div><div class="base base-yellow"><div class="base-inner"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div></div><div class="center"><div class="center-tri tri-top"></div><div class="center-tri tri-bottom"></div><div class="center-tri tri-left"></div><div class="center-tri tri-right"></div></div>`);
-    }
-
-    function createDiceSVG(val) {
-      const dots = { 1: [[25, 25]], 2: [[12, 12], [38, 38]], 3: [[12, 12], [25, 25], [38, 38]], 4: [[12, 12], [12, 38], [38, 12], [38, 38]], 5: [[12, 12], [12, 38], [25, 25], [38, 12], [38, 38]], 6: [[12, 12], [12, 25], [12, 38], [38, 12], [38, 25], [38, 38]] };
-      let h = `<div class="dice" id="dice-main">`;
-      if (val) dots[val].forEach(d => { h += `<div class="dot" style="top:${d[0]-4}px; left:${d[1]-4}px"></div>`; });
-      else h += `<span style="font-size: 24px; color:#ccc;">?</span>`;
-      return h + `</div>`;
-    }
-
-    /** LOBBY **/
+    /** LOBBY & INITIALIZATION **/
     function showLobbySetup(m) { gameMode = m; document.getElementById('mode-selection').classList.add('hidden'); document.getElementById('online-lobby').classList.remove('hidden'); document.getElementById('online-pre-join').classList.remove('hidden'); document.getElementById('room-setup').classList.add('hidden'); }
     function showCreateRoom() { isCreating = true; document.getElementById('online-pre-join').classList.add('hidden'); document.getElementById('room-setup').classList.remove('hidden'); document.getElementById('setup-title').innerText = "CREATE ROOM"; document.getElementById('color-select-area').classList.remove('hidden'); document.getElementById('gameIdInput').classList.add('hidden'); }
     function showJoinRoom() { isCreating = false; document.getElementById('online-pre-join').classList.add('hidden'); document.getElementById('room-setup').classList.remove('hidden'); document.getElementById('setup-title').innerText = "JOIN ROOM"; document.getElementById('color-select-area').classList.add('hidden'); document.getElementById('gameIdInput').classList.remove('hidden'); }
     function backToModes() { document.getElementById('mode-selection').classList.remove('hidden'); document.getElementById('online-lobby').classList.add('hidden'); document.getElementById('local-setup').classList.add('hidden'); document.getElementById('game-wrapper').classList.add('hidden'); document.getElementById('footer-controls').classList.add('hidden'); }
     function setLocalPlayerCount(n) { localPlayerCount = n; document.querySelectorAll('#local-players-config .btn').forEach(b => { if (b.innerText.length === 1) b.style.opacity = (parseInt(b.innerText) === n) ? "1" : "0.5"; }); }
     function showLocalSetup(m) { gameMode = m; document.getElementById('mode-selection').classList.add('hidden'); document.getElementById('local-setup').classList.remove('hidden'); document.getElementById('local-setup-title').innerText = m === 'ai' ? 'VS COMPUTER' : 'PASS & PLAY'; document.getElementById('local-players-config').classList.toggle('hidden', m === 'ai'); document.getElementById('ai-color-choice').classList.toggle('hidden', m !== 'ai'); }
-    function cleanupEngine() {
-      if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-      if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
-      isAnimating = false;
-      isRequestPending = false;
-      localStateVersion = 0;
-      lastStatus = null;
-      lastPieces = null;
-      document.querySelectorAll('.piece').forEach(p => {
-        p.dataset.animating = 'false';
-        p.classList.remove('playable');
-        p.onclick = null;
-      });
-      connectivityHUD.update('online');
+    
+    function initOnlineGame() {
+      myName = document.getElementById('playerName').value; myColor = document.getElementById('playerColor').value; const code = document.getElementById('gameIdInput').value.toUpperCase();
+      if (!myName) return alert("Enter name");
+      const action = () => {
+        isRequestPending = true; connectivityHUD.update('busy');
+        const success = (res) => { if (res.success) onGameJoined(res); else handleServerError(res, action); };
+        if (isCreating) google.script.run.withSuccessHandler(success).withFailureHandler(onErr).createGame(myName, myColor);
+        else google.script.run.withSuccessHandler(success).withFailureHandler(onErr).joinGame(code, myName, 'red');
+      };
+      action();
     }
 
-    function showToast(msg) {
-      const toast = document.createElement('div');
-      toast.style = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:10px; z-index:2000; font-weight:bold; animation: fadeOut 2s forwards;';
-      toast.innerText = msg;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-    }
-
-    function quitToMenu() { 
-      if (!confirm("Are you sure?")) return; 
+    function initLocalGame() {
       cleanupEngine();
-      currentGameId = null; gameState = null; 
-      document.getElementById('login-screen').classList.remove('hidden'); 
-      backToModes(); 
+      document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden');
+      document.getElementById('room-code-display').innerText = gameMode.toUpperCase();
+      const p = { red: null, green: null, yellow: null, blue: null };
+      if (gameMode === 'local') { for (let i = 0; i < localPlayerCount; i++) p[COLORS[i]] = `Player ${i+1}`; myColor = 'all'; }
+      else { myColor = document.getElementById('aiPlayerColor').value; p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = "Bot " + c.toUpperCase(); }); }
+      gameState = { gameId: 'LOCAL', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing' };
+      updateUI(gameState); checkAITurn();
+    }
+
+    function onGameJoined(res) { 
+      const s = res.state; currentGameId = s.gameId; myColor = isCreating ? s.host : Object.keys(s.players).find(c => s.players[c] === myName);
+      isRequestPending = false; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden'); document.getElementById('room-code-display').innerText = s.gameId; 
+      updateUI(s); connectivityHUD.update('online'); startPolling(); 
+    }
+
+    function handleStartGame() { 
+      if (isRequestPending) return;
+      const action = () => {
+        isRequestPending = true; connectivityHUD.update('busy');
+        google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).startGame(currentGameId, myColor);
+      };
+      action();
+    }
+
+    function startPolling() { if (gameMode !== 'online' || !currentGameId) return; if (pollTimer) clearTimeout(pollTimer); let d = backoffDelay; if (document.hidden) d = Math.max(d, 5000); pollTimer = setTimeout(poll, d); }
+    function poll() {
+      if (!currentGameId || gameMode !== 'online' || isRequestPending) return;
+      isRequestPending = true; connectivityHUD.update('busy');
+      google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; pollRetryCount = 0; backoffDelay = 1000; document.getElementById('reconnect-modal').classList.add('hidden'); connectivityHUD.update('online'); updateUI(res.state); startPolling(); } else handleServerError(res); }).withFailureHandler(onErr).getGameState(currentGameId);
     }
 
     /** CORE ACTIONS **/
@@ -417,38 +386,35 @@
       const turn = (gameMode === 'online' && gameState.currentTurn === myColor) || (gameMode === 'local') || (gameMode === 'ai' && gameState.currentTurn === myColor);
       if (!turn || gameState.dice.hasRolled || gameState.status !== 'playing' || isAnimating || gameState.placements.includes(gameState.currentTurn) || isRequestPending) return;
       audioHaptic.diceRoll(); const d = document.getElementById('dice-main'); if (d) d.classList.add('rolling');
-      
       if (gameMode === 'online') {
-        isRequestPending = true;
-        connectivityHUD.update('busy');
-        setTimeout(() => { 
+        const action = () => {
+          isRequestPending = true; connectivityHUD.update('busy');
           google.script.run.withSuccessHandler(res => {
-            isRequestPending = false;
             if (res.success) {
-              const s = res.state;
-              updateUI(s);
+              isRequestPending = false; const s = res.state; updateUI(s);
               if (s.currentTurn === myColor && s.dice.hasRolled && !hasLegalMovesLocal(myColor, s.dice.value)) {
                 showToast("NO LEGAL MOVES");
-                setTimeout(() => {
-                  if (gameMode === 'online') {
-                    isRequestPending = true;
-                    connectivityHUD.update('busy');
-                    google.script.run.withSuccessHandler(r2 => {
-                       isRequestPending = false;
-                       if (r2.success) updateUI(r2.state);
-                       else onErr(new Error(r2.error));
-                    }).withFailureHandler(onErr).passTurn(currentGameId, myColor);
-                  }
-                }, 1000);
+                setTimeout(() => { if (gameMode === 'online') { const passAction = () => { isRequestPending = true; connectivityHUD.update('busy'); google.script.run.withSuccessHandler(r2 => { if (r2.success) { isRequestPending = false; updateUI(r2.state); } else handleServerError(r2, passAction); }).withFailureHandler(onErr).passTurn(currentGameId, myColor); }; passAction(); } }, 1000);
               }
-            } else {
-              onErr(new Error(res.error));
-            }
+            } else handleServerError(res, action);
           }).withFailureHandler(onErr).rollDice(currentGameId, myColor);
-        }, 500);
-      } else {
-        setTimeout(() => executeLocalRoll(gameState.currentTurn), 500);
+        };
+        setTimeout(action, 500);
+      } else setTimeout(() => executeLocalRoll(gameState.currentTurn), 500);
+    }
+
+    function movePiece(idx) {
+      if (!gameState || isAnimating || isRequestPending) return; const color = gameState.currentTurn, cur = gameState.pieces[color][idx], roll = gameState.dice.value, target = (cur === -1) ? 0 : cur + roll;
+      if (gameMode === 'online') { 
+        const action = () => {
+          isRequestPending = true; connectivityHUD.update('busy');
+          const el = document.getElementById(`piece-${color}-${idx}`); if (el) el.classList.remove('playable'); 
+          animatePieceHop(color, idx, cur, target); 
+          google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; if (!isAnimating) updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).movePiece(currentGameId, myColor, idx); 
+        };
+        action();
       }
+      else animatePieceHop(color, idx, cur, target).then(() => executeLocalMove(color, idx));
     }
 
     async function animatePieceHop(color, pIdx, start, target) {
@@ -457,150 +423,90 @@
       let path = (start === -1) ? [0] : Array.from({length: target - start}, (_, i) => start + i + 1);
       const bW = document.getElementById('board-container').clientWidth, cS = bW / 15;
       for (const pos of path) {
-        audioHaptic.pieceHop(); 
-        
-        if (gameState) {
-           gameState.pieces[color][pIdx] = pos;
-           renderPieces(gameState);
-        }
-
+        audioHaptic.pieceHop(); if (gameState) { gameState.pieces[color][pIdx] = pos; renderPieces(gameState); }
         const coords = getPieceCoords(color, pos, pIdx);
         el.style.top = (coords[0]*cS+cS*0.1)+'px'; el.style.left = (coords[1]*cS+cS*0.1)+'px';
         el.style.transform = `translateY(-15px) scale(1.1)`; await new Promise(r => setTimeout(r, 75));
         el.style.transform = `translateY(0px) scale(1)`; await new Promise(r => setTimeout(r, 75));
       }
-      el.dataset.animating = 'false';
-      isAnimating = false; 
-      
-      // Optimistic Rollback Reconciliation: Post-Animation authoritative sync
+      el.dataset.animating = 'false'; isAnimating = false; 
       if (gameMode === 'online') poll(); 
-      
-      if (gameState) { 
-        const old = [...gameState.placements]; 
-        if (gameMode !== 'online') updateUI(gameState);
-        if (gameState.placements.length > old.length && gameState.placements.includes(color)) audioHaptic.playerFinish(); 
-      }
+      if (gameState) { const old = [...gameState.placements]; if (gameMode !== 'online') updateUI(gameState); if (gameState.placements.length > old.length && gameState.placements.includes(color)) audioHaptic.playerFinish(); }
     }
 
+    function executeLocalRoll(color) {
+      const r = Math.floor(Math.random()*6)+1; if(r===6) gameState.consecutiveSixes[color]++; else gameState.consecutiveSixes[color]=0;
+      if (gameState.consecutiveSixes[color]===3) { gameState.consecutiveSixes[color]=0; gameState.dice.hasRolled=false; gameState.dice.value=null; gameState.currentTurn=getNextLocalPlayer(); updateUI(gameState); checkAITurn(); }
+      else { gameState.dice.value=r; gameState.dice.hasRolled=true; updateUI(gameState); if(!hasLegalMovesLocal(color, r)) { setTimeout(() => { if(!gameState)return; gameState.dice.hasRolled=false; gameState.dice.value=null; gameState.currentTurn=getNextLocalPlayer(); updateUI(gameState); checkAITurn(); }, 1000); } else { checkAITurn(); } }
+    }
+
+    function executeLocalMove(color, idx) {
+      const roll = gameState.dice.value, cur = gameState.pieces[color][idx], next = (cur===-1)?0:cur+roll;
+      if (next >= 0 && next <= 51) { const gIdx = getGlobalIndex(color, next); if (![1, 9, 14, 22, 27, 35, 40, 48].includes(gIdx)) COLORS.forEach(c => { if (c!==color) gameState.pieces[c] = gameState.pieces[c].map(p => (p>=0&&p<=51&&getGlobalIndex(c,p)===gIdx)?-1:p); }); }
+      gameState.pieces[color][idx] = next; const piecesFinishedCount = gameState.pieces[color].filter(p => p === 57).length;
+      if (piecesFinishedCount === 4 && !gameState.placements.includes(color)) gameState.placements.push(color);
+      const active = Object.keys(gameState.players).filter(c=>gameState.players[c]);
+      if (gameState.placements.length >= active.length - 1) { gameState.status = 'gameOver'; }
+      else { if(roll!==6 || piecesFinishedCount === 4) gameState.currentTurn = getNextLocalPlayer(); gameState.dice.hasRolled=false; gameState.dice.value=null; }
+      updateUI(gameState); checkAITurn();
+    }
+
+    /** HELPERS **/
+    function getPieceCoords(color, pos, idx) { if(pos===-1) return BASES[color][idx]; if(pos>=57) return FINISH; if(pos>=52) return HOME_STRETCH[color][pos-52]; return SHARED_TRACK[getGlobalIndex(color, pos)]; }
+    function getGlobalIndex(color, local) { const offsets = { red: 1, green: 14, yellow: 27, blue: 40 }; return (local + offsets[color]) % 52; }
+    function getNextLocalPlayer() { const idx = COLORS.indexOf(gameState.currentTurn); for(let i=1;i<4;i++){ const n=COLORS[(idx+i)%4]; if(gameState.players[n]&&!gameState.placements.includes(n)) return n; } return gameState.currentTurn; }
+    function hasLegalMovesLocal(color, roll) { return gameState.pieces[color].some(p => (p===-1)?(roll===6):(p<57&&p+roll<=57)); }
+    function isMoveLegal(p, r) { return (p===-1)?(r===6):(p<57&&p+r<=57); }
+    function checkAITurn() { if (!gameState || gameMode !== 'ai' || gameState.status !== 'playing') return; if (gameState.currentTurn !== myColor) { if (aiTimer) clearTimeout(aiTimer); aiTimer = setTimeout(executeAITurn, 1000); } }
+    
     let aiSafetyBreaker = 0;
     function executeAITurn() {
       if (!gameState || gameMode !== 'ai' || gameState.currentTurn === myColor || gameState.status !== 'playing') return;
-      
-      // Safety Breaker
-      aiSafetyBreaker++;
-      if (aiSafetyBreaker > 50) {
-        console.warn("AI Safety Breaker Tripped.");
-        aiSafetyBreaker = 0;
-        gameState.dice.hasRolled = false; gameState.dice.value = null; gameState.currentTurn = getNextLocalPlayer();
-        updateUI(gameState);
-        return;
-      }
-
+      aiSafetyBreaker++; if (aiSafetyBreaker > 50) { aiSafetyBreaker = 0; gameState.dice.hasRolled = false; gameState.dice.value = null; gameState.currentTurn = getNextLocalPlayer(); updateUI(gameState); return; }
       const color = gameState.currentTurn;
       if (!gameState.dice.hasRolled) executeLocalRoll(color);
       else {
         const roll = gameState.dice.value, legal = []; gameState.pieces[color].forEach((p, i) => { if (isMoveLegal(p, roll)) legal.push(i); });
         if (legal.length > 0) {
-          aiSafetyBreaker = 0;
-          let bIdx = legal[0], max = -1000;
-...
-        } else {
-          showToast("AI: NO MOVES");
-          setTimeout(() => {
-            if(!gameState) return;
-            gameState.dice.hasRolled = false; gameState.dice.value = null; gameState.currentTurn = getNextLocalPlayer(); 
-            updateUI(gameState); checkAITurn(); 
-          }, 1000);
-        }
+          aiSafetyBreaker = 0; let bIdx = legal[0], max = -1000;
+          legal.forEach(idx => { const p = gameState.pieces[color][idx], next = (p===-1)?0:p+roll; let s = next; if (next >= 0 && next <= 51) { const g = getGlobalIndex(color, next); COLORS.forEach(c => { if(c!==color && gameState.pieces[c].some(cp => cp>=0&&cp<=51&&getGlobalIndex(c,cp)===g)) s += 100; }); } if (next === 57) s += 80; if (p === -1 && roll === 6) s += 60; if (s > max) { max = s; bIdx = idx; } });
+          aiTimer = setTimeout(() => { animatePieceHop(color, bIdx, gameState.pieces[color][bIdx], (gameState.pieces[color][bIdx]===-1)?0:gameState.pieces[color][bIdx]+roll).then(() => executeLocalMove(color, bIdx)); }, 800);
+        } else { showToast("AI: NO MOVES"); setTimeout(() => { if(!gameState) return; gameState.dice.hasRolled = false; gameState.dice.value = null; gameState.currentTurn = getNextLocalPlayer(); updateUI(gameState); checkAITurn(); }, 1000); }
       }
     }
 
     function updateUI(s) {
-      if (!s) return; 
-
-      if (lastPieces && s.status === 'playing') {
-        let captured = false;
-        COLORS.forEach(c => {
-          s.pieces[c].forEach((p, i) => {
-            if (p === -1 && lastPieces[c] && lastPieces[c][i] !== -1) captured = true;
-          });
-        });
-        if (captured) audioHaptic.capture();
-      }
+      if (!s) return; if (s.stateVersion && s.stateVersion <= localStateVersion) return; localStateVersion = s.stateVersion || localStateVersion;
+      if (lastPieces && s.status === 'playing') { let captured = false; COLORS.forEach(c => { s.pieces[c].forEach((p, i) => { if (p === -1 && lastPieces[c] && lastPieces[c][i] !== -1) captured = true; }); }); if (captured) audioHaptic.capture(); }
       lastPieces = JSON.parse(JSON.stringify(s.pieces));
-
-      if (s.status === 'gameOver' && lastStatus !== 'gameOver') {
-        audioHaptic.gameEnd();
-        alert("GAME OVER! Check the leaderboard.");
-      }
+      if (s.status === 'gameOver' && lastStatus !== 'gameOver') { audioHaptic.gameEnd(); alert("GAME OVER! Check the leaderboard."); }
       lastStatus = s.status;
-
-      if (!isAnimating) {
-        gameState = s;
-      } else {
-        const localPieces = gameState.pieces;
-        gameState = s;
-        gameState.pieces = localPieces;
-      }
-
+      if (!isAnimating) { gameState = s; } else { const localPieces = gameState.pieces; gameState = s; gameState.pieces = localPieces; }
       document.getElementById('start-game-btn').classList.toggle('hidden', gameState.status !== 'waiting' || gameState.host !== myColor);
       COLORS.forEach(c => {
         const h = document.getElementById(`hud-${c}`), n = document.getElementById(`name-${c}`), d = document.getElementById(`dice-container-${c}`);
         h.querySelector('.avatar').innerHTML = '👤'; const r = gameState.placements.indexOf(c) + 1; if (r > 0) h.querySelector('.avatar').innerHTML += `<div class="placement-badge badge-${r}">${r}${['st','nd','rd'][r-1]||'th'}</div>`;
         n.innerText = gameState.players[c] || 'Waiting...'; h.classList.toggle('active', gameState.currentTurn === c && gameState.status === 'playing');
-        if (gameState.currentTurn === c && gameState.status === 'playing' && !gameState.placements.includes(c)) { 
-          d.innerHTML = createDiceSVG(gameState.dice.value); 
-          const diceEl = d.querySelector('.dice');
-          if (diceEl && isRequestPending) diceEl.style.opacity = '0.5';
-          d.onclick = (c === myColor || gameMode === 'local') && !gameState.dice.hasRolled && !isAnimating && !isRequestPending ? rollDice : null; 
-        }
+        if (gameState.currentTurn === c && gameState.status === 'playing' && !gameState.placements.includes(c)) { d.innerHTML = createDiceSVG(gameState.dice.value); const diceEl = d.querySelector('.dice'); if (diceEl && isRequestPending) diceEl.style.opacity = '0.5'; d.onclick = (c === myColor || gameMode === 'local') && !gameState.dice.hasRolled && !isAnimating && !isRequestPending ? rollDice : null; }
         else d.innerHTML = '';
       });
       if (!isAnimating) renderPieces(gameState);
     }
 
     function renderPieces(s) {
-      const layer = document.getElementById('pieces-layer');
-      layer.style.pointerEvents = 'none';
-      const groups = {}; 
-      COLORS.forEach(c => { 
-        s.pieces[c].forEach((p, i) => { 
-          let k = (p === -1) ? `b-${c}-${i}` : (p >= 57) ? `f` : (p >= 52) ? `h-${c}-${p}` : `t-${getGlobalIndex(c, p)}`; 
-          if (!groups[k]) groups[k] = []; 
-          groups[k].push({ c, p, i }); 
-        }); 
-      });
-
+      const layer = document.getElementById('pieces-layer'); layer.style.pointerEvents = 'none'; const groups = {}; COLORS.forEach(c => { s.pieces[c].forEach((p, i) => { let k = (p === -1) ? `b-${c}-${i}` : (p >= 57) ? `f` : (p >= 52) ? `h-${c}-${p}` : `t-${getGlobalIndex(c, p)}`; if (!groups[k]) groups[k] = []; groups[k].push({ c, p, i }); }); });
       COLORS.forEach(c => {
         s.pieces[c].forEach((p, i) => {
-          let el = document.getElementById(`piece-${c}-${i}`);
-          if (!el) {
-            el = document.createElement('div');
-            el.id = `piece-${c}-${i}`;
-            el.className = `piece ${c}`;
-            layer.appendChild(el);
-          }
+          let el = document.getElementById(`piece-${c}-${i}`); if (!el) { el = document.createElement('div'); el.id = `piece-${c}-${i}`; el.className = `piece ${c}`; layer.appendChild(el); }
           if (el.dataset.animating === 'true') return;
-
           const coords = getPieceCoords(c, p, i), bW = document.getElementById('board-container').clientWidth, cS = bW / 15;
           let t = coords[0]*cS+cS*0.1, l = coords[1]*cS+cS*0.1, tr = '';
-          
           let k = (p === -1) ? `b-${c}-${i}` : (p >= 57) ? `f` : (p >= 52) ? `h-${c}-${p}` : `t-${getGlobalIndex(c, p)}`;
           const pcs = groups[k];
-          
-          if (pcs.length > 1 && p !== -1 && p < 57) { 
-            const idxInGroup = pcs.findIndex(x => x.c === c && x.i === i);
-            const o = cS*0.18, os = [[-o,-o], [o,-o], [-o,o], [o,o]]; 
-            const [ox, oy] = os[idxInGroup%4]; 
-            tr = `translate(${ox}px, ${oy}px) scale(0.75)`; 
-          }
-          
+          if (pcs.length > 1 && p !== -1 && p < 57) { const idxInGroup = pcs.findIndex(x => x.c === c && x.i === i); const o = cS*0.18, os = [[-o,-o], [o,-o], [-o,o], [o,o]]; const [ox, oy] = os[idxInGroup%4]; tr = `translate(${ox}px, ${oy}px) scale(0.75)`; }
           el.style.top = t+'px'; el.style.left = l+'px'; el.style.width = el.style.height = (cS*0.8)+'px'; el.style.transform = tr;
-          
           el.classList.remove('playable'); el.style.pointerEvents = 'none'; el.onclick = null;
-          if (!isAnimating && (s.currentTurn === myColor || gameMode === 'local' || (gameMode === 'ai' && s.currentTurn === myColor)) && c === s.currentTurn && s.dice.hasRolled && isMoveLegal(p, s.dice.value)) { 
-            el.classList.add('playable'); el.style.pointerEvents = 'auto'; el.onclick = () => movePiece(i); layer.style.pointerEvents = 'auto'; 
-          }
+          if (!isAnimating && (s.currentTurn === myColor || gameMode === 'local' || (gameMode === 'ai' && s.currentTurn === myColor)) && c === s.currentTurn && s.dice.hasRolled && isMoveLegal(p, s.dice.value)) { el.classList.add('playable'); el.style.pointerEvents = 'auto'; el.onclick = () => movePiece(i); layer.style.pointerEvents = 'auto'; }
         });
       });
     }

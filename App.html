@@ -116,38 +116,43 @@
       grid-column: 2; grid-row: 1 / 4; position: relative;
       width: 90vw; height: 90vw; max-width: 600px; max-height: 600px;
       background: var(--grid-border); border: 4px solid var(--grid-border); border-radius: 8px; box-shadow: var(--shadow);
+      aspect-ratio: 1 / 1;
     }
     #board { display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr); width: 100%; height: 100%; background: var(--board-bg); border-radius: 4px; overflow: hidden; }
-    .cell { border: 1px solid var(--grid-border); position: relative; }
+    .cell { border: 1px solid var(--grid-border); position: relative; background: var(--board-bg); }
     
-    .base { grid-area: span 6 / span 6; display: flex; align-items: center; justify-content: center; position: relative; }
-    .base-red { background: var(--red-grad); }
-    .base-green { background: var(--green-grad); }
-    .base-blue { background: var(--blue-grad); }
-    .base-yellow { background: var(--yellow-grad); }
+    /* Bases */
+    .red-base { background: var(--red-grad) !important; }
+    .green-base { background: var(--green-grad) !important; }
+    .blue-base { background: var(--blue-grad) !important; }
+    .yellow-base { background: var(--yellow-grad) !important; }
     
     .base-inner {
       width: 70%; height: 70%; background: var(--hud-bg); border-radius: 15%;
       display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; padding: 12px; gap: 12px;
-      box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
     }
     .base-red .base-inner { border: 2px solid var(--red-solid); }
     .base-green .base-inner { border: 2px solid var(--green-solid); }
     .base-blue .base-inner { border: 2px solid var(--blue-solid); }
     .base-yellow .base-inner { border: 2px solid var(--yellow-solid); }
-    
     .slot { border-radius: 50%; border: 1px solid var(--grid-border); background: rgba(0,0,0,0.02); }
 
-    .cell.red { background: var(--red-solid); }
-    .cell.green { background: var(--green-solid); }
-    .cell.yellow { background: var(--yellow-solid); }
-    .cell.blue { background: var(--blue-solid); }
-
-    .center { grid-area: 7 / 7 / 10 / 10; position: relative; background: var(--board-bg); }
+    /* Stretches & Center */
+    .home-stretch.red { background: var(--red-solid) !important; }
+    .home-stretch.green { background: var(--green-solid) !important; }
+    .home-stretch.yellow { background: var(--yellow-solid) !important; }
+    .home-stretch.blue { background: var(--blue-solid) !important; }
+    .home-center { background: var(--board-bg); }
+    
     .center-tri { position: absolute; width: 100%; height: 100%; }
     .tri-top { background: var(--green-solid); opacity: 0.6; clip-path: polygon(50% 50%, 0 0, 100% 0); }
     .tri-bottom { background: var(--blue-solid); opacity: 0.6; clip-path: polygon(50% 50%, 0 100%, 100% 100%); }
     .tri-left { background: var(--red-solid); opacity: 0.6; clip-path: polygon(50% 50%, 0 0, 0 100%); }
+    .tri-right { background: var(--yellow-solid); opacity: 0.6; clip-path: polygon(50% 50%, 100% 0, 100% 100%); }
+
+    .safe-zone { background: rgba(0,0,0,0.05) !important; }
+    body[data-theme="dark"] .safe-zone { background: rgba(255,255,255,0.05) !important; }
     .tri-right { background: var(--yellow-solid); opacity: 0.6; clip-path: polygon(50% 50%, 100% 0, 100% 100%); }
 
     .star-icon { position: absolute; width: 70%; height: 70%; top: 15%; left: 15%; fill: var(--star-fill); }
@@ -497,118 +502,86 @@
        if (gameState.currentTurn !== myColor) checkAITurn();
     }
     
-    function initOnlineGame() {
-      myName = document.getElementById('playerName').value; myColor = document.getElementById('playerColor').value; const code = document.getElementById('gameIdInput').value.toUpperCase();
-      if (!myName) return alert("Enter name");
-      const action = () => {
-        isRequestPending = true; connectivityHUD.update('busy');
-        const success = (res) => { if (res.success) onGameJoined(res); else handleServerError(res, action); };
-        if (isCreating) google.script.run.withSuccessHandler(success).withFailureHandler(onErr).createGame(myName, myColor);
-        else google.script.run.withSuccessHandler(success).withFailureHandler(onErr).joinGame(code, myName, 'red');
-      };
-      action();
+    function initBoard() {
+      const board = document.getElementById('board'); board.innerHTML = '';
+      for (let r = 0; r < 15; r++) {
+        for (let c = 0; c < 15; c++) {
+          const cell = document.createElement('div');
+          cell.id = `cell-${r}-${c}`;
+          cell.className = 'cell';
+
+          // Bases (6x6 areas)
+          if (r <= 5 && c <= 5) cell.classList.add('base', 'red-base');
+          else if (r <= 5 && c >= 9) cell.classList.add('base', 'green-base');
+          else if (r >= 9 && c <= 5) cell.classList.add('base', 'blue-base');
+          else if (r >= 9 && c >= 9) cell.classList.add('base', 'yellow-base');
+
+          // Home Center (3x3 area)
+          else if (r >= 6 && r <= 8 && c >= 6 && c <= 8) cell.classList.add('home-center');
+
+          // Home Stretches
+          else if (r === 7 && c >= 1 && c <= 5) cell.classList.add('home-stretch', 'red');
+          else if (c === 7 && r >= 1 && r <= 5) cell.classList.add('home-stretch', 'green');
+          else if (r === 7 && c >= 9 && c <= 13) cell.classList.add('home-stretch', 'yellow');
+          else if (c === 7 && r >= 9 && r <= 13) cell.classList.add('home-stretch', 'blue');
+
+          // Safe Stars & Start Squares
+          const startSquares = [[6, 1], [1, 8], [8, 13], [13, 6]];
+          const starSquares = [[6, 2], [2, 8], [8, 12], [12, 6]];
+          if (startSquares.some(s => s[0] === r && s[1] === c) || starSquares.some(s => s[0] === r && s[1] === c)) {
+            cell.classList.add('safe-zone');
+            cell.innerHTML = `<svg class="star-icon" viewBox="0 0 512 512"><path d="M512 198.5L344.5 174.1 256 21.3l-88.5 152.8L0 198.5l121.3 118.1L92.7 482.7 256 397l163.3 85.7-28.6-166.1z"/></svg>`;
+          }
+
+          board.appendChild(cell);
+        }
+      }
+
+      // Inject Base Slots
+      const baseLayout = [
+        { r: 0, c: 0, color: 'red' }, { r: 0, c: 9, color: 'green' },
+        { r: 9, c: 0, color: 'blue' }, { r: 9, c: 9, color: 'yellow' }
+      ];
+      baseLayout.forEach(b => {
+        const area = document.createElement('div');
+        area.className = `base-container base-${b.color}`;
+        area.style = "position:absolute; top:0; left:0; width:600%; height:600%; display:flex; align-items:center; justify-content:center; pointer-events:none;";
+        area.innerHTML = `<div class="base-inner"><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div></div>`;
+        document.getElementById(`cell-${b.r}-${b.c}`).appendChild(area);
+      });
+      
+      // Center Overlay
+      const center = document.getElementById('cell-7-7');
+      center.innerHTML = `<div class="center-overlay" style="position:absolute; top:0; left:0; width:300%; height:300%; pointer-events:none;"><div class="center-tri tri-top"></div><div class="center-tri tri-bottom"></div><div class="center-tri tri-left"></div><div class="center-tri tri-right"></div></div>`;
+    }
+
+    function startAIGame() {
+       gameMode = 'ai'; myColor = selectedAIColor;
+       const difficulty = parseInt(document.getElementById('aiDifficulty').value);
+       cleanupEngine();
+       document.getElementById('login-screen').classList.add('hidden'); 
+       document.getElementById('game-wrapper').classList.remove('hidden'); 
+       document.getElementById('footer-controls').classList.remove('hidden');
+       document.getElementById('room-code-display').innerText = "VS COMPUTER";
+       const p = { red: null, green: null, yellow: null, blue: null };
+       p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = c.charAt(0).toUpperCase() + c.slice(1) + " Bot"; });
+       gameState = { gameId: 'AI_MATCH', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing', aiDifficulty: difficulty };
+       renderPieces(gameState);
+       updateUI(gameState); 
+       if (gameState.currentTurn !== myColor) checkAITurn();
     }
 
     function initLocalGame() {
       cleanupEngine();
-      document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden');
+      document.getElementById('login-screen').classList.add('hidden'); 
+      document.getElementById('game-wrapper').classList.remove('hidden'); 
+      document.getElementById('footer-controls').classList.remove('hidden');
       document.getElementById('room-code-display').innerText = gameMode.toUpperCase();
       const p = { red: null, green: null, yellow: null, blue: null };
       if (gameMode === 'local') { for (let i = 0; i < localPlayerCount; i++) p[COLORS[i]] = `Player ${i+1}`; myColor = 'all'; }
       else { myColor = document.getElementById('aiPlayerColor').value; p[myColor] = "You"; COLORS.forEach(c => { if(c !== myColor) p[c] = "Bot " + c.toUpperCase(); }); }
       gameState = { gameId: 'LOCAL', players: p, currentTurn: 'red', dice: { value: null, hasRolled: false }, pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] }, consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 }, placements: [], status: 'playing' };
-      updateUI(gameState); checkAITurn();
-    }
-
-    function onGameJoined(res) { 
-      const s = res.state; currentGameId = s.gameId; myColor = isCreating ? s.host : Object.keys(s.players).find(c => s.players[c] === myName);
-      isRequestPending = false; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('game-wrapper').classList.remove('hidden'); document.getElementById('footer-controls').classList.remove('hidden'); document.getElementById('room-code-display').innerText = s.gameId; 
-      updateUI(s); connectivityHUD.update('online'); startPolling(); 
-    }
-
-    function handleStartGame() { 
-      if (isRequestPending) return;
-      const action = () => {
-        isRequestPending = true; connectivityHUD.update('busy');
-        google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).startGame(currentGameId, myColor);
-      };
-      action();
-    }
-
-    function startPolling() { if (gameMode !== 'online' || !currentGameId) return; if (pollTimer) clearTimeout(pollTimer); let d = backoffDelay; if (document.hidden) d = Math.max(d, 5000); pollTimer = setTimeout(poll, d); }
-    function poll() {
-      if (!currentGameId || gameMode !== 'online' || isRequestPending) return;
-      isRequestPending = true; connectivityHUD.update('busy');
-      google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; pollRetryCount = 0; backoffDelay = 1000; document.getElementById('reconnect-modal').classList.add('hidden'); connectivityHUD.update('online'); updateUI(res.state); startPolling(); } else handleServerError(res); }).withFailureHandler(onErr).getGameState(currentGameId);
-    }
-
-    /** CORE ACTIONS **/
-    function rollDice() {
-      const turn = (gameMode === 'online' && gameState.currentTurn === myColor) || (gameMode === 'local') || (gameMode === 'ai' && gameState.currentTurn === myColor);
-      if (!turn || gameState.dice.hasRolled || gameState.status !== 'playing' || isAnimating || gameState.placements.includes(gameState.currentTurn) || isRequestPending) return;
-      audioHaptic.diceRoll(); const d = document.getElementById('dice-main'); if (d) d.classList.add('rolling');
-      if (gameMode === 'online') {
-        const action = () => {
-          isRequestPending = true; connectivityHUD.update('busy');
-          google.script.run.withSuccessHandler(res => {
-            if (res.success) {
-              isRequestPending = false; const s = res.state; updateUI(s);
-              if (s.currentTurn === myColor && s.dice.hasRolled && !hasLegalMovesLocal(myColor, s.dice.value)) {
-                showToast("NO LEGAL MOVES");
-                setTimeout(() => { if (gameMode === 'online') { const passAction = () => { isRequestPending = true; connectivityHUD.update('busy'); google.script.run.withSuccessHandler(r2 => { if (r2.success) { isRequestPending = false; updateUI(r2.state); } else handleServerError(r2, passAction); }).withFailureHandler(onErr).passTurn(currentGameId, myColor); }; passAction(); } }, 1000);
-              }
-            } else handleServerError(res, action);
-          }).withFailureHandler(onErr).rollDice(currentGameId, myColor);
-        };
-        setTimeout(action, 500);
-      } else setTimeout(() => executeLocalRoll(gameState.currentTurn), 500);
-    }
-
-    function movePiece(idx) {
-      if (!gameState || isAnimating || isRequestPending) return; const color = gameState.currentTurn, cur = gameState.pieces[color][idx], roll = gameState.dice.value, target = (cur === -1) ? 0 : cur + roll;
-      if (gameMode === 'online') { 
-        const action = () => {
-          isRequestPending = true; connectivityHUD.update('busy');
-          const el = document.getElementById(`piece-${color}-${idx}`); if (el) el.classList.remove('playable'); 
-          animatePieceHop(color, idx, cur, target); 
-          google.script.run.withSuccessHandler(res => { if (res.success) { isRequestPending = false; if (!isAnimating) updateUI(res.state); } else handleServerError(res, action); }).withFailureHandler(onErr).movePiece(currentGameId, myColor, idx); 
-        };
-        action();
-      }
-      else animatePieceHop(color, idx, cur, target).then(() => executeLocalMove(color, idx));
-    }
-
-    async function animatePieceHop(color, pIdx, start, target) {
-      isAnimating = true; const el = document.getElementById(`piece-${color}-${pIdx}`); if (!el) { isAnimating = false; return; }
-      el.dataset.animating = 'true';
-      let path = (start === -1) ? [0] : Array.from({length: target - start}, (_, i) => start + i + 1);
-      const bW = document.getElementById('board-container').clientWidth, cS = bW / 15;
-      for (const pos of path) {
-        audioHaptic.pieceHop(); if (gameState) { gameState.pieces[color][pIdx] = pos; renderPieces(gameState); }
-        const coords = getPieceCoords(color, pos, pIdx);
-        el.style.top = (coords[0]*cS+cS*0.1)+'px'; el.style.left = (coords[1]*cS+cS*0.1)+'px';
-        el.style.transform = `translateY(-15px) scale(1.1)`; await new Promise(r => setTimeout(r, 75));
-        el.style.transform = `translateY(0px) scale(1)`; await new Promise(r => setTimeout(r, 75));
-      }
-      el.dataset.animating = 'false'; isAnimating = false; 
-      if (gameMode === 'online') poll(); 
-      if (gameState) { const old = [...gameState.placements]; if (gameMode !== 'online') updateUI(gameState); if (gameState.placements.length > old.length && gameState.placements.includes(color)) audioHaptic.playerFinish(); }
-    }
-
-    function executeLocalRoll(color) {
-      const r = Math.floor(Math.random()*6)+1; if(r===6) gameState.consecutiveSixes[color]++; else gameState.consecutiveSixes[color]=0;
-      if (gameState.consecutiveSixes[color]===3) { gameState.consecutiveSixes[color]=0; gameState.dice.hasRolled=false; gameState.dice.value=null; gameState.currentTurn=getNextLocalPlayer(); updateUI(gameState); checkAITurn(); }
-      else { gameState.dice.value=r; gameState.dice.hasRolled=true; updateUI(gameState); if(!hasLegalMovesLocal(color, r)) { setTimeout(() => { if(!gameState)return; gameState.dice.hasRolled=false; gameState.dice.value=null; gameState.currentTurn=getNextLocalPlayer(); updateUI(gameState); checkAITurn(); }, 1000); } else { checkAITurn(); } }
-    }
-
-    function executeLocalMove(color, idx) {
-      const roll = gameState.dice.value, cur = gameState.pieces[color][idx], next = (cur===-1)?0:cur+roll;
-      if (next >= 0 && next <= 51) { const gIdx = getGlobalIndex(color, next); if (![1, 9, 14, 22, 27, 35, 40, 48].includes(gIdx)) COLORS.forEach(c => { if (c!==color) gameState.pieces[c] = gameState.pieces[c].map(p => (p>=0&&p<=51&&getGlobalIndex(c,p)===gIdx)?-1:p); }); }
-      gameState.pieces[color][idx] = next; const piecesFinishedCount = gameState.pieces[color].filter(p => p === 57).length;
-      if (piecesFinishedCount === 4 && !gameState.placements.includes(color)) gameState.placements.push(color);
-      const active = Object.keys(gameState.players).filter(c=>gameState.players[c]);
-      if (gameState.placements.length >= active.length - 1) { gameState.status = 'gameOver'; }
-      else { if(roll!==6 || piecesFinishedCount === 4) gameState.currentTurn = getNextLocalPlayer(); gameState.dice.hasRolled=false; gameState.dice.value=null; }
+      renderPieces(gameState);
       updateUI(gameState); checkAITurn();
     }
 
@@ -672,8 +645,7 @@
       });
     }
 
-    buildBoard();
-    initTheme();
+    document.addEventListener("DOMContentLoaded", () => { initBoard(); initTheme(); });
     window.addEventListener('resize', () => { if(gameState) updateUI(gameState); });
     document.addEventListener("visibilitychange", () => { if (!document.hidden && gameMode === 'online') poll(); });
   </script>

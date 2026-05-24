@@ -1,39 +1,37 @@
-# Ludo GAS (Google Apps Script)
+# Ludo MultiPlayer (GAS Edition)
 
-A real-time, 4-player multiplayer Ludo game running entirely on **Google Apps Script** (backend) and **Vanilla HTML/CSS/JS** (frontend).
+A robust, high-performance, and fault-tolerant Ludo implementation for Google Apps Script (HTML/JS/CSS frontend and Code.gs backend).
 
-## 🚀 Features
-- **Server-Authoritative Logic:** Dice rolls and piece movements are validated on the server to prevent cheating.
-- **Real-Time Multiplayer:** State synchronization via 1.5s polling loop.
-- **High Performance:** Uses `CacheService` as a high-speed, serverless database.
-- **Concurrency Control:** `LockService` handles simultaneous actions from multiple players.
-- **CSS Grid Board:** A responsive 15x15 grid-based game board (no Canvas).
-- **Ludo Rules:** Includes base entry (roll 6), capturing opponents, safe squares, and home stretch logic.
+## Key Features
 
-## 🛠️ Architecture
-- **Backend (`Code.gs`):** Google Apps Script functions handling game state, concurrency, and logic.
-- **Frontend (`App.html`):** Single-page application with vanilla JS and CSS Grid.
-- **Database:** `CacheService.getScriptCache()` (No external DB required).
-- **Concurrency:** `LockService.getScriptLock()` with 5-second wait locks.
+- **N-1 Win Condition**: The game continues until only one loser remains, providing a full placement leaderboard (1st, 2nd, 3rd).
+- **Zero-Trust Backend**: Every move and dice roll is validated mathematically on the server to prevent cheating and client-side manipulation.
+- **Enterprise-Grade Synchronization**:
+  - **Linear State Versioning**: Prevents "time-travel" bugs from out-of-order network packets.
+  - **Optimistic UI with Rollback**: Provides 60FPS animations while maintaining authoritative server state.
+  - **Recursive Polling**: Self-healing network layer that prevents overlapping requests and memory leaks.
+- **Audio & Haptics**: Immersive "Game Feel" with synced Web Audio and hardware vibration patterns for rolling, hopping, capturing, and finishing.
+- **Hybrid Game Modes**: Supports Online Multiplayer, Local "Pass & Play", and AI "Play Computer" modes.
+- **Connectivity HUD**: Real-time status indicators (Online, Busy, Error) with automatic retry logic for server busy-states.
+- **Leaderboard Integration**: Automatically logs game results and point distributions (+3, +2, +1, 0) to a "LudoPlayers" Google Sheet tab.
 
-## 📦 Deployment Instructions
-1. Go to [script.google.com](https://script.google.com).
-2. Create a new project named "Ludo GAS".
-3. Replace the contents of `Code.gs` with the `Code.gs` from this repo.
-4. Create a new HTML file in the Apps Script editor named `App.html` and paste the contents of `App.html` from this repo.
-5. Click **Deploy** > **New Deployment**.
-6. Select **Web App**:
-   - **Execute as:** Me
-   - **Who has access:** Anyone
-7. Copy the Web App URL and share it with your friends!
+## Architecture
 
-## 🎮 How to Play
-1. Enter your name and pick a color.
-2. If you are starting a new game, leave the "Room Code" empty.
-3. Share the generated 4-letter Room Code with other players.
-4. Roll the dice when it's your turn.
-5. Click on glowing pieces to move them.
-6. Reach the center with all 4 pieces to win!
+- **Backend**: Google Apps Script (`Code.gs`) with `CacheService` for state management and `LockService` for concurrency safety.
+- **Frontend**: Single-page application (`App.html`) using Vanilla CSS Grid (15x15) and Optimistic State reconciliation.
+- **Security**: Strict zero-trust validation on all endpoints. Server-side authoritative capture and destination calculation.
 
-## 📜 License
-MIT
+## Setup
+
+1. Create a new Google Apps Script project.
+2. Copy the contents of `Code.gs` and `App.html` into the respective files.
+3. Deploy as a Web App.
+4. (Optional) Create a Google Sheet and name a tab "LudoPlayers" to track the leaderboard.
+
+## Engineering Standards
+
+This project follows strict senior engineering standards:
+- Explicit memory management with a centralized `cleanupEngine`.
+- LockService fallback handling with automatic client-side retries.
+- Dynamic CSS clustering for stacked pieces on safe squares.
+- AI safety breakers to prevent infinite decision loops.

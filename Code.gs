@@ -1,246 +1,380 @@
-const COLORS = ['red', 'green', 'yellow', 'blue'];
-const SAFE_SQUARES = [1, 9, 14, 22, 27, 35, 40, 48];
-
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('App')
-    .setTitle('Ludo MultiPlayer')
+function doGet(e) {
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle('Ludo King')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
 }
 
-/** STATE MANAGEMENT **/
-function getLock() { return LockService.getScriptLock(); }
-function getCache() { return CacheService.getScriptCache(); }
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+const CACHE_TIMEOUT = 21600; 
+const LOCK_TIMEOUT = 5000;
+
 function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = '0123456789';
   let code = '';
-  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
   return code;
 }
-const CACHE_TTL = 21600; // 6 hours
 
-function saveState(gameId, state) { 
-  state.stateVersion = (state.stateVersion || 0) + 1;
-  state.lastUpdate = Date.now(); 
-  getCache().put(gameId, JSON.stringify(state), CACHE_TTL); 
-}
-function getState(gameId) { const cached = getCache().get(gameId); return cached ? JSON.parse(cached) : null; }
-
-/** ENDPOINTS **/
-function createGame(playerName, color) {
-  const lock = getLock();
-  try {
-    if (!lock.tryLock(5000)) return { success: false, error: "SERVER_BUSY" };
-    const gameId = generateRoomCode();
-    const state = {
-      gameId: gameId,
-      stateVersion: 1,
-      host: color,
-      players: { red: null, green: null, yellow: null, blue: null },
-      currentTurn: color,
-      dice: { value: null, hasRolled: false, rollId: null },
-      pieces: { red: [-1,-1,-1,-1], green: [-1,-1,-1,-1], yellow: [-1,-1,-1,-1], blue: [-1,-1,-1,-1] },
-      consecutiveSixes: { red: 0, green: 0, yellow: 0, blue: 0 },
-      placements: [],
-      status: 'waiting',
-      lastUpdate: Date.now()
-    };
-    state.players[color] = playerName;
-    saveState(gameId, state);
-    return { success: true, state: state };
-  } catch (e) { return { success: false, error: e.message }; } finally { lock.releaseLock(); }
+function getActiveRooms() {
+  const cache = CacheService.getScriptCache();
+  const roomsStr = cache.get('LOBBY_ROOMS');
+  return roomsStr ? JSON.parse(roomsStr) : [];
 }
 
-function joinGame(gameId, playerName, color) {
-  const lock = getLock();
-  try {
-    if (!lock.tryLock(5000)) return { success: false, error: "SERVER_BUSY" };
-    const state = getState(gameId);
-    if (!state) return { success: false, error: "ROOM_NOT_FOUND" };
-    if (state.status !== 'waiting') return { success: false, error: "GAME_ALREADY_STARTED" };
-    
-    let finalColor = color;
-    if (state.players[finalColor]) {
-      finalColor = COLORS.find(c => !state.players[c]);
-    }
-    if (!finalColor) return { success: false, error: "ROOM_FULL" };
-    
-    state.players[finalColor] = playerName;
-    saveState(gameId, state);
-    return { success: true, state: state };
-  } catch (e) { return { success: false, error: e.message }; } finally { lock.releaseLock(); }
+function saveActiveRooms(rooms) {
+  const cache = CacheService.getScriptCache();
+  cache.put('LOBBY_ROOMS', JSON.stringify(rooms), CACHE_TIMEOUT);
 }
 
-function startGame(gameId, requestingColor) {
-  const lock = getLock();
-  try {
-    if (!lock.tryLock(5000)) return { success: false, error: "SERVER_BUSY" };
-    const state = getState(gameId);
-    if (!state) return { success: false, error: "ROOM_NOT_FOUND" };
-    if (state.host !== requestingColor) return { success: false, error: "NOT_HOST" };
-    const activePlayers = Object.values(state.players).filter(p => p !== null).length;
-    if (activePlayers < 2) return { success: false, error: "NEED_MORE_PLAYERS" };
+function getLobbyState() {
+  const rooms = getActiveRooms();
+  const cache = CacheService.getScriptCache();
+  const activeLobby = [];
+  
+  if (rooms.length > 0) {
+    const keys = rooms.map(r => 'R_' + r);
+    const roomData = cache.getAll(keys);
     
-    state.status = 'playing';
-    saveState(gameId, state);
-    return { success: true, state: state };
-  } catch (e) { return { success: false, error: e.message }; } finally { lock.releaseLock(); }
-}
-
-function getGameState(gameId) { 
-  const state = getState(gameId);
-  if (!state) return { success: false, error: "ROOM_NOT_FOUND" };
-  return { success: true, state: state };
-}
-
-function rollDice(gameId, requestingColor) {
-  const lock = getLock();
-  try {
-    if (!lock.tryLock(5000)) return { success: false, error: "SERVER_BUSY" };
-    const state = getState(gameId);
-    if (!state) return { success: false, error: "ROOM_NOT_FOUND" };
-    if (state.currentTurn !== requestingColor || state.dice.hasRolled || state.status !== 'playing') {
-       return { success: false, error: "ILLEGAL_ROLL", syncRequired: true };
-    }
-    
-    const roll = Math.floor(Math.random() * 6) + 1;
-    state.dice.rollId = Date.now();
-    if (roll === 6) state.consecutiveSixes[requestingColor]++;
-    else state.consecutiveSixes[requestingColor] = 0;
-
-    if (state.consecutiveSixes[requestingColor] === 3) {
-      state.consecutiveSixes[requestingColor] = 0;
-      state.dice.hasRolled = false; state.dice.value = null;
-      state.currentTurn = getNextPlayer(state);
-    } else {
-      state.dice.value = roll;
-      state.dice.hasRolled = true;
-    }
-    saveState(gameId, state);
-    return { success: true, state: state };
-  } catch (e) { return { success: false, error: e.message }; } finally { lock.releaseLock(); }
-}
-
-function passTurn(gameId, requestingColor) {
-  const lock = getLock();
-  try {
-    if (!lock.tryLock(5000)) return { success: false, error: "SERVER_BUSY" };
-    const state = getState(gameId);
-    if (!state) return { success: false, error: "ROOM_NOT_FOUND" };
-    if (state.currentTurn !== requestingColor || !state.dice.hasRolled || state.status !== 'playing') {
-      return { success: false, error: "ILLEGAL_PASS", syncRequired: true };
-    }
-    
-    if (hasLegalMoves(state, requestingColor, state.dice.value)) {
-      return { success: false, error: "LEGAL_MOVES_EXIST", syncRequired: true };
-    }
-    
-    state.dice.hasRolled = false; state.dice.value = null;
-    state.currentTurn = getNextPlayer(state);
-    
-    saveState(gameId, state);
-    return { success: true, state: state };
-  } catch (e) { return { success: false, error: e.message }; } finally { lock.releaseLock(); }
-}
-
-function movePiece(gameId, requestingColor, pieceIndex) {
-  const lock = getLock();
-  try {
-    if (!lock.tryLock(5000)) return { success: false, error: "SERVER_BUSY" };
-    const state = getState(gameId);
-    if (!state) return { success: false, error: "ROOM_NOT_FOUND" };
-    
-    // Zero-Trust Validation
-    if (state.currentTurn !== requestingColor || !state.dice.hasRolled || state.status !== 'playing') {
-      return { success: false, error: "STATE_VIOLATION", syncRequired: true };
-    }
-    
-    const roll = state.dice.value;
-    const currentPos = state.pieces[requestingColor][pieceIndex];
-    
-    // Server-side Move Validity (Authoritative)
-    if (currentPos === -1 && roll !== 6) return { success: false, error: "ILLEGAL_MOVE_START", syncRequired: true };
-    if (currentPos !== -1 && currentPos + roll > 57) return { success: false, error: "ILLEGAL_MOVE_OVERSHOT", syncRequired: true };
-    if (currentPos === 57) return { success: false, error: "ILLEGAL_MOVE_FINISHED", syncRequired: true };
-
-    const nextPos = (currentPos === -1) ? 0 : currentPos + roll;
-
-    // Authoritative Capture Logic
-    if (nextPos >= 0 && nextPos <= 51) {
-      const gIdx = getGlobalIndex(requestingColor, nextPos);
-      if (!SAFE_SQUARES.includes(gIdx)) {
-        COLORS.forEach(c => {
-          if (c === requestingColor) return;
-          state.pieces[c] = state.pieces[c].map(p => (p >= 0 && p <= 51 && getGlobalIndex(c, p) === gIdx) ? -1 : p);
-        });
+    let activeCodes = [];
+    for (let rCode of rooms) {
+      let dataStr = roomData['R_' + rCode];
+      if (dataStr) {
+        let state = JSON.parse(dataStr);
+        activeCodes.push(rCode);
+        if (!state.isPrivate) {
+          activeLobby.push({
+            roomCode: rCode,
+            host: state.players.length > 0 ? state.players[0].name : 'Unknown',
+            playerCount: state.players.length,
+            claimedColors: state.claimedColors || [],
+            status: state.state
+          });
+        }
       }
     }
     
-    state.pieces[requestingColor][pieceIndex] = nextPos;
-    
-    // Check finish state
-    const piecesFinishedCount = state.pieces[requestingColor].filter(p => p === 57).length;
-    if (piecesFinishedCount === 4 && !state.placements.includes(requestingColor)) {
-      state.placements.push(requestingColor);
-    }
-
-    const activePlayers = Object.keys(state.players).filter(c => state.players[c]);
-    if (state.placements.length >= activePlayers.length - 1) {
-      state.status = 'gameOver';
-      writeLeaderboard(state);
-    } else {
-      // Turn Advancement Logic
-      if (roll !== 6 || piecesFinishedCount === 4) {
-        state.currentTurn = getNextPlayer(state);
+    if (activeCodes.length !== rooms.length) {
+      const lock = LockService.getScriptLock();
+      if (lock.tryLock(2000)) {
+        try {
+          saveActiveRooms(activeCodes);
+        } finally {
+          lock.releaseLock();
+        }
       }
-      state.dice.hasRolled = false; state.dice.value = null;
     }
-    
-    saveState(gameId, state);
-    return { success: true, state: state };
-  } catch (e) { return { success: false, error: "INTERNAL_ERROR" }; } finally { lock.releaseLock(); }
-}
-
-/** HELPERS **/
-function getNextPlayer(state) {
-  const currentIndex = COLORS.indexOf(state.currentTurn);
-  for (let i = 1; i < 4; i++) {
-    const next = COLORS[(currentIndex + i) % 4];
-    if (state.players[next] && !state.placements.includes(next)) return next;
   }
-  return state.currentTurn;
+  return activeLobby;
 }
 
-function hasLegalMoves(state, color, roll) {
-  return state.pieces[color].some(p => (p === -1) ? (roll === 6) : (p < 57 && p + roll <= 57));
-}
-
-function getGlobalIndex(color, localIndex) {
-  const offsets = { red: 1, green: 14, yellow: 27, blue: 40 };
-  return (localIndex + offsets[color]) % 52;
-}
-
-function writeLeaderboard(state) {
+function createRoom(playerName, isPrivate, hostColor, settings) {
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) {
+    throw new Error('Could not acquire lock to create room. Please try again.');
+  }
+  
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.create("Ludo Leaderboard");
-    let sheet = ss.getSheetByName("LudoPlayers");
-    if (!sheet) sheet = ss.insertSheet("LudoPlayers");
+    let roomCode;
+    let attempts = 0;
+    do {
+      roomCode = generateRoomCode();
+      attempts++;
+    } while (cache.get('R_' + roomCode) && attempts < 10);
     
-    const active = Object.keys(state.players).filter(c => state.players[c]);
-    const loser = active.find(c => !state.placements.includes(c));
-    const finalOrder = [...state.placements, loser];
+    if (attempts >= 10) throw new Error('Failed to generate a unique room code.');
     
-    finalOrder.forEach((color, i) => {
-      let points = 0;
-      if (i === finalOrder.length - 1) {
-        points = 0; // The loser always gets 0
-      } else {
-        // 1st: 3, 2nd: 2, 3rd: 1
-        points = 3 - i;
+    const initialGameState = {
+      version: 1,
+      isPrivate: !!isPrivate,
+      settings: settings || { splitMoves: false, bounties: false, blitz: false, alliance: false, threeSixes: true, autoMove: true, blockades: true },
+      claimedColors: [hostColor],
+      players: [{ id: 0, name: playerName, color: hostColor, isBot: false }],
+      spectators: [],
+      turnIndex: 0,
+      state: 'WAITING',
+      board: null,
+      diceRoll: null,
+      rollId: null,
+      sixesRolled: 0,
+      reactions: [],
+      turnCount: 0,
+      bounties: [],
+      guaranteedSix: {},
+      remainingRoll: 0,
+      lastAction: 'Room created'
+    };
+    
+    cache.put('R_' + roomCode, JSON.stringify(initialGameState), CACHE_TIMEOUT);
+    
+    const rooms = getActiveRooms();
+    rooms.push(roomCode);
+    saveActiveRooms(rooms);
+    
+    return { success: true, roomCode: roomCode, state: initialGameState, playerId: 0, isSpectator: false };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function joinRoom(roomCode, playerName, chosenColor) {
+  roomCode = roomCode.trim();
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) throw new Error('Lock error.');
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr) return { success: false, error: 'Room not found or expired.' };
+    
+    const state = JSON.parse(stateStr);
+    
+    let isSpectator = false;
+    let newPlayerId = -1;
+    
+    if (state.players.length >= 4) {
+      isSpectator = true;
+      state.spectators.push(playerName);
+      state.lastAction = playerName + ' joined as spectator';
+    } else if (state.state !== 'WAITING') {
+      isSpectator = true;
+      state.spectators.push(playerName);
+      state.lastAction = playerName + ' joined as spectator';
+    } else {
+      if ((state.claimedColors || []).includes(chosenColor)) {
+         return { success: false, error: 'Color already claimed!' };
       }
-      if (points < 0) points = 0;
       
-      sheet.appendRow([new Date(), state.players[color], color, i + 1, points, state.gameId]);
+      newPlayerId = state.players.length;
+      if (!state.claimedColors) state.claimedColors = [];
+      state.claimedColors.push(chosenColor);
+      
+      state.players.push({
+        id: newPlayerId,
+        name: playerName,
+        color: chosenColor,
+        isBot: false
+      });
+      state.lastAction = playerName + ' joined';
+    }
+    
+    state.version++;
+    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    
+    return { success: true, state: state, playerId: newPlayerId, isSpectator: isSpectator };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function addBotToRoom(roomCode, botColor) {
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) throw new Error('Lock error.');
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr) return { success: false, error: 'Room not found.' };
+    
+    const state = JSON.parse(stateStr);
+    
+    if (state.state !== 'WAITING') return { success: false, error: 'Game already started.' };
+    if (state.players.length >= 4) return { success: false, error: 'Room is full.' };
+    if ((state.claimedColors || []).includes(botColor)) return { success: false, error: 'Color already claimed.' };
+    
+    const newPlayerId = state.players.length;
+    if (!state.claimedColors) state.claimedColors = [];
+    state.claimedColors.push(botColor);
+    
+    state.players.push({
+      id: newPlayerId,
+      name: 'Bot ' + (newPlayerId),
+      color: botColor,
+      isBot: true
     });
-  } catch (e) {}
+    
+    state.version++;
+    state.lastAction = 'Bot added';
+    
+    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    return { success: true, state: state };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function startGame(roomCode) {
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) return null;
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr) return null;
+    
+    const state = JSON.parse(stateStr);
+    if (state.state === 'WAITING' && state.players.length >= 2) {
+      state.state = 'PLAYING';
+      state.version++;
+      state.lastAction = 'Game started';
+      cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    }
+    return state;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getRoomState(roomCode, clientVersion) {
+  const cache = CacheService.getScriptCache();
+  const stateStr = cache.get('R_' + roomCode);
+  
+  if (!stateStr) return { success: false, error: 'Room not found.' };
+  
+  const state = JSON.parse(stateStr);
+  if (state.version > clientVersion) {
+    return { success: true, updated: true, state: state };
+  } else {
+    return { success: true, updated: false, version: state.version };
+  }
+}
+
+function updateRoomState(roomCode, newStateDelta, expectedVersion) {
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) return { success: false, error: 'Lock timeout' };
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr) return { success: false, error: 'Room not found' };
+    
+    const state = JSON.parse(stateStr);
+    
+    if (state.version !== expectedVersion) {
+      return { success: false, error: 'Version mismatch', state: state };
+    }
+    
+    for (let key in newStateDelta) {
+      state[key] = newStateDelta[key];
+    }
+    
+    if (state.settings && state.settings.bounties && state.turnCount > 0 && state.turnCount % 5 === 0 && state.bountySpawnedForTurn !== state.turnCount) {
+        state.bountySpawnedForTurn = state.turnCount;
+        let nonSafe = [];
+        for (let i=0; i<52; i++) {
+            if (![0, 8, 13, 21, 26, 34, 39, 47].includes(i)) nonSafe.push(i);
+        }
+        let pos = nonSafe[Math.floor(Math.random() * nonSafe.length)];
+        let type = Math.random() > 0.5 ? 'shield' : 'golden_dice';
+        if (!state.bounties) state.bounties = [];
+        state.bounties.push({ pos: pos, type: type });
+    }
+    
+    state.version++;
+    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    
+    return { success: true, state: state };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function performRoll(roomCode, expectedVersion) {
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) return { success: false, error: 'Lock timeout' };
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr) return { success: false, error: 'Room not found' };
+    
+    const state = JSON.parse(stateStr);
+    
+    if (state.version !== expectedVersion) {
+      return { success: false, error: 'Version mismatch', state: state };
+    }
+    
+    if (state.hasRolled || state.winner) {
+      return { success: false, error: 'Already rolled' };
+    }
+    
+    let rollResult;
+    const pColor = state.players[state.turnIndex].color;
+    if (state.guaranteedSix && state.guaranteedSix[pColor]) {
+       rollResult = 6;
+       state.guaranteedSix[pColor] = false;
+    } else {
+       rollResult = Math.floor(Math.random() * 6) + 1;
+    }
+    
+    state.diceRoll = rollResult;
+    state.rollId = new Date().getTime(); 
+    state.hasRolled = true;
+    state.remainingRoll = rollResult;
+    
+    if (state.diceRoll === 6) {
+      if (!state.settings || state.settings.threeSixes !== false) {
+        state.sixesRolled = (state.sixesRolled || 0) + 1;
+        if (state.sixesRolled >= 3) {
+           state.hasRolled = false;
+           state.sixesRolled = 0;
+           state.turnIndex = (state.turnIndex + 1) % state.players.length;
+           state.turnCount = (state.turnCount || 0) + 1;
+           state.lastAction = '3 Sixes Penalty! Turn lost.';
+        } else {
+           state.lastAction = '';
+        }
+      } else {
+        state.lastAction = '';
+      }
+    } else {
+      state.lastAction = '';
+    }
+    
+    state.version++;
+    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    return { success: true, state: state };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function sendReaction(roomCode, playerId, emoji) {
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(LOCK_TIMEOUT)) return { success: false };
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr) return { success: false };
+    const state = JSON.parse(stateStr);
+    
+    if (!state.reactions) state.reactions = [];
+    state.reactions.push({
+      playerId: playerId,
+      emoji: emoji,
+      time: new Date().getTime()
+    });
+    
+    state.reactions = state.reactions.filter(r => new Date().getTime() - r.time < 10000);
+    state.version++;
+    
+    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
 }

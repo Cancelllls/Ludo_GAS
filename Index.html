@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Style'); ?>
+</head>
+<body>
+  
+  <div id="ui-container">
+    <div id="main-menu" class="menu-screen">
+      <h1 style="font-size: 52px; background: linear-gradient(to right, #ffd000, #ff8c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0px 6px 10px rgba(0,0,0,0.4); margin-bottom: 35px; letter-spacing: 2px;">LUDO KING</h1>
+      <div class="menu-buttons">
+        <button onclick="uiManager.showLocalMenu()">Pass & Play / Vs Computer</button>
+        <button onclick="uiManager.showOnlineMenu()">Play Online</button>
+      </div>
+    </div>
+    
+    <div id="local-menu" class="menu-screen hidden">
+      <h2 style="color: var(--accent-color);">Vs Computer / Local</h2>
+      <div class="player-select">
+        <label>Total Players (Humans + Bots):</label>
+        <select id="local-player-count">
+          <option value="2">2 Players</option>
+          <option value="3">3 Players</option>
+          <option value="4" selected>4 Players</option>
+        </select>
+      </div>
+      <div class="bot-select" style="margin-bottom:15px;">
+        <label>Number of Bots:</label>
+        <select id="local-bot-count">
+          <option value="0">0 Bots (All Human)</option>
+          <option value="1">1 Bot</option>
+          <option value="2">2 Bots</option>
+          <option value="3" selected>3 Bots</option>
+        </select>
+      </div>
+      
+      <div style="margin-bottom: 15px; border: 1px solid var(--accent-color); padding: 12px; border-radius: 8px; text-align:left; background: rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:var(--accent-color); font-size: 16px; text-align:center; text-transform:uppercase; letter-spacing:1px;">Match Settings</h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:14px; color:#e0e0e0;">
+          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-threeSixes" checked> 3 Sixes Penalty</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-autoMove" checked> Auto-Move</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-blockades" checked> Blockades</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-split"> Move Splitting</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-bounties"> Dynamic Bounties</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-blitz"> Blitz Timer (15s)</label>
+          <label style="grid-column: span 2; text-align:center; color:var(--primary-color); font-weight:bold; cursor:pointer;"><input type="checkbox" id="local-setting-alliance"> 2v2 Alliance Mode</label>
+        </div>
+      </div>
+      
+      <div class="menu-buttons">
+        <button onclick="gameManager.startLocalGame()">Start Game</button>
+        <button class="back-btn" onclick="uiManager.showMainMenu()">Back</button>
+      </div>
+    </div>
+
+    <div id="online-menu" class="menu-screen hidden">
+      <h2 style="color: var(--accent-color);">Online Lobby</h2>
+      <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
+      
+      <div style="margin-bottom: 15px; text-align:center;">
+        <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--accent-color);">Select Your Color:</label>
+        <div id="color-selector" style="display:flex; justify-content:center; gap:10px;">
+          <button class="color-btn selected" data-color="red" style="background:var(--red); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('red')"></button>
+          <button class="color-btn" data-color="green" style="background:var(--green); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('green')"></button>
+          <button class="color-btn" data-color="yellow" style="background:var(--yellow); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('yellow')"></button>
+          <button class="color-btn" data-color="blue" style="background:var(--blue); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('blue')"></button>
+        </div>
+      </div>
+      
+      <div class="lobby-browser" id="lobby-browser" style="padding:10px; border-radius:8px; min-height:120px; max-height:200px; overflow-y:auto; margin-bottom:15px;">
+        <div style="text-align:center; color:#888;">Loading rooms...</div>
+      </div>
+      
+      <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <input type="checkbox" id="is-private-room" style="width:20px; height:20px; cursor:pointer;"> 
+        <label for="is-private-room" style="cursor:pointer; font-weight:bold;">Private Room</label>
+      </div>
+      
+      <div style="margin-bottom: 15px; border: 1px solid var(--accent-color); padding: 12px; border-radius: 8px; text-align:left; background: rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0; color:var(--accent-color); font-size: 16px; text-align:center; text-transform:uppercase; letter-spacing:1px;">Host Settings</h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:14px; color:#e0e0e0;">
+          <label style="cursor:pointer;"><input type="checkbox" id="setting-threeSixes" checked> 3 Sixes Penalty</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="setting-autoMove" checked> Auto-Move</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="setting-blockades" checked> Blockades</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="setting-split"> Move Splitting</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="setting-bounties"> Dynamic Bounties</label>
+          <label style="cursor:pointer;"><input type="checkbox" id="setting-blitz"> Blitz Timer (15s)</label>
+          <label style="grid-column: span 2; text-align:center; color:var(--primary-color); font-weight:bold; cursor:pointer;"><input type="checkbox" id="setting-alliance"> 2v2 Alliance Mode</label>
+        </div>
+      </div>
+      
+      <div class="menu-buttons">
+        <button onclick="multiplayerManager.refreshLobby()" style="background:var(--accent-color); color:white;">Refresh Public Lobby</button>
+        <button onclick="multiplayerManager.hostGame()">Create New Room</button>
+        <div class="join-section">
+          <input type="text" id="join-room-code" placeholder="PIN (e.g. 5829)" maxlength="4" style="text-align:center; font-weight:bold; letter-spacing:2px;">
+          <button onclick="multiplayerManager.joinGame()">Join / Spectate</button>
+        </div>
+        <button class="back-btn" onclick="uiManager.showMainMenu()">Back</button>
+      </div>
+      <div id="online-status" class="status-msg"></div>
+    </div>
+
+    <div id="waiting-room" class="menu-screen hidden">
+      <h2 style="color: var(--accent-color);">Room PIN: <span id="display-room-code" style="color: var(--primary-color);"></span></h2>
+      <div class="players-list" id="room-players-list">
+        <!-- Players will be populated here -->
+      </div>
+      <div class="players-list hidden" id="spectators-list-container" style="min-height:auto;">
+        <h4 style="margin:0 0 5px 0; color:var(--accent-color);">Spectators:</h4>
+        <div id="room-spectators-list" style="color:#ddd; font-size:14px;"></div>
+      </div>
+      
+      <div id="host-bot-controls" class="hidden" style="margin-bottom:15px; display:flex; gap:10px; align-items:center;">
+        <select id="bot-color-select" style="flex:1; margin:0;">
+          <option value="red">Red Bot</option>
+          <option value="green">Green Bot</option>
+          <option value="yellow">Yellow Bot</option>
+          <option value="blue">Blue Bot</option>
+        </select>
+        <button onclick="multiplayerManager.addBot()" style="background:var(--accent-color); color:white; padding:8px 15px; margin:0;">Add Bot</button>
+      </div>
+      
+      <div class="menu-buttons">
+        <button id="start-online-btn" class="hidden" onclick="multiplayerManager.startGame()">Start Game</button>
+        <button class="back-btn" onclick="multiplayerManager.leaveRoom()">Leave</button>
+      </div>
+      <div id="waiting-status" class="status-msg">Waiting for players...</div>
+    </div>
+    
+    <div id="game-screen" class="hidden">
+      <div class="game-header">
+        <div id="turn-indicator" class="turn-box">Red's Turn</div>
+        <div id="blitz-display" class="hidden" style="color:var(--primary-color); font-weight:bold; font-size:20px;">
+          ⏱️ <span id="blitz-time">15</span>s
+        </div>
+        <div id="room-info" class="hidden" style="font-weight:bold;">PIN: <span id="game-room-code" style="color:var(--primary-color);"></span> <span id="spectator-badge" class="hidden" style="color:var(--primary-color); font-size:12px; margin-left:10px;">(SPECTATING)</span></div>
+      </div>
+      
+      <div class="canvas-container">
+        <canvas id="ludo-board"></canvas>
+        <div id="reaction-container" style="position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none;"></div>
+      </div>
+      
+      <div class="game-controls">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="dice-container" id="dice-container" onclick="gameManager.rollDice()">
+            <div id="dice-value">🎲</div>
+          </div>
+          <div id="emoji-panel" style="display:flex; gap:5px;" class="hidden">
+            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😂')">😂</button>
+            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😡')">😡</button>
+            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🎲')">🎲</button>
+            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🏃‍♂️')">🏃‍♂️</button>
+          </div>
+        </div>
+        <div id="action-status">Roll the dice!</div>
+        <button id="quit-btn" onclick="gameManager.quitGame()">Quit</button>
+      </div>
+    </div>
+
+    <!-- Modals/Overlays -->
+    <div id="overlay" class="overlay hidden">
+      <div class="modal">
+        <h3 id="modal-title" style="color:var(--primary-color); font-size:24px; margin-bottom:15px;">Game Over</h3>
+        <p id="modal-content" style="font-size:18px; line-height:1.4;"></p>
+        <button onclick="uiManager.closeModal()">OK</button>
+      </div>
+    </div>
+    
+    <div id="split-overlay" class="overlay hidden">
+      <div class="modal">
+        <h3 style="color:var(--primary-color); font-size:24px; margin-bottom:15px;">Split Move</h3>
+        <p style="font-size:18px;">Points remaining: <span id="split-points-left" style="font-weight:bold; color:var(--accent-color);"></span></p>
+        <div style="margin:20px 0;">
+          <input type="range" id="split-range" min="1" max="6" value="1" style="width:100%; cursor:pointer;">
+          <div style="font-size:22px; font-weight:bold; margin-top:10px;">Move: <span id="split-range-val" style="color:#fff;">1</span></div>
+        </div>
+        <div style="display:flex; gap:15px; margin-top:20px;">
+          <button onclick="uiManager.confirmSplit()" style="flex:1;">Confirm</button>
+          <button class="back-btn" onclick="uiManager.cancelSplit()" style="flex:1;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const AppState = {
+      mode: 'menu', 
+      playerId: null, 
+      isSpectator: false,
+      roomCode: null,
+      playerName: null,
+      selectedColor: 'red'
+    };
+  </script>
+  
+  <?!= include('Engine'); ?>
+  <?!= include('Bot'); ?>
+  <?!= include('App'); ?>
+  
+</body>
+</html>

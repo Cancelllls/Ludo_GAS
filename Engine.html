@@ -1,0 +1,318 @@
+<script>
+const LudoEngine = (function() {
+  const COLORS = ['red', 'blue', 'green', 'yellow'];
+  const STAR_ZONES = [0, 8, 13, 21, 26, 34, 39, 47]; 
+  
+  const PATH_OFFSETS = { 'red': 0, 'blue': 13, 'green': 26, 'yellow': 39 };
+  const HOME_PATH_START = { 'red': 52, 'blue': 57, 'green': 62, 'yellow': 67 };
+
+  class GameState {
+    constructor(players, settings = {}) {
+      this.players = players;
+      this.settings = settings;
+      this.turnIndex = 0;
+      this.diceRoll = null;
+      this.rollId = null;
+      this.hasRolled = false;
+      this.sixesRolled = 0;
+      this.winner = null;
+      this.spectators = [];
+      this.reactions = [];
+      this.bounties = [];
+      this.guaranteedSix = {};
+      this.turnCount = 0;
+      this.remainingRoll = 0;
+      this.earnedBonus = false;
+      
+      this.tokens = {};
+      this.players.forEach(p => {
+        for(let i=0; i<4; i++) {
+          this.tokens[`${p.color}_${i}`] = {
+            id: `${p.color}_${i}`,
+            color: p.color,
+            pos: -1,
+            shield: false
+          };
+        }
+      });
+      
+      this.log = [];
+    }
+    
+    get currentColor() {
+      return this.players[this.turnIndex].color;
+    }
+    
+    get currentPlayer() {
+      return this.players[this.turnIndex];
+    }
+    
+    getTeam(color) {
+      if (color === 'red' || color === 'green') return 1;
+      if (color === 'blue' || color === 'yellow') return 2;
+      return 0;
+    }
+    
+    hasOpponentBlockade(movingColor, pos) {
+      if (this.settings && this.settings.blockades === false) return false;
+      if (pos < 0 || pos > 51) return false;
+      let counts = {};
+      for (let tid in this.tokens) {
+        let t = this.tokens[tid];
+        let isOpponent = this.settings.alliance ? (this.getTeam(t.color) !== this.getTeam(movingColor)) : (t.color !== movingColor);
+        if (t.pos === pos && isOpponent) {
+          counts[t.color] = (counts[t.color] || 0) + 1;
+        }
+      }
+      for (let c in counts) {
+        if (counts[c] >= 2) return true;
+      }
+      return false;
+    }
+    
+    getValidMoves(color, roll) {
+      if (!roll) return [];
+      let maxSteps = (this.settings && this.settings.splitMoves) ? this.remainingRoll : roll;
+      if (maxSteps <= 0) return [];
+      
+      let checkColors = [color];
+      
+      if (this.settings && this.settings.alliance) {
+          let homeCount = 0;
+          for (let i=0; i<4; i++) {
+             if (this.tokens[`${color}_${i}`].pos === 100) homeCount++;
+          }
+          if (homeCount === 4) {
+             let myTeam = this.getTeam(color);
+             for (let c of ['red', 'blue', 'green', 'yellow']) {
+                 if (c !== color && this.getTeam(c) === myTeam) {
+                     checkColors.push(c);
+                 }
+             }
+          }
+      }
+      
+      let valid = [];
+      for (let c of checkColors) {
+          for(let i=0; i<4; i++) {
+            let token = this.tokens[`${c}_${i}`];
+            if (token.pos === 100) continue; 
+            
+            if (token.pos === -1) {
+              if (maxSteps === 6 || (!(this.settings && this.settings.splitMoves) && roll === 6)) valid.push(token.id);
+            } else {
+              let canMove = false;
+              if (this.settings && this.settings.splitMoves) {
+                for (let s = 1; s <= maxSteps; s++) {
+                   if (this.calculateNextPosition(token.pos, c, s) !== null) {
+                      canMove = true; break;
+                   }
+                }
+              } else {
+                if (this.calculateNextPosition(token.pos, c, roll) !== null) {
+                   canMove = true;
+                }
+              }
+              if (canMove) valid.push(token.id);
+            }
+          }
+      }
+      return valid;
+    }
+    
+    calculateNextPosition(currentPos, color, roll) {
+      if (currentPos === -1) {
+        if (roll !== 6) return null;
+        let startPos = PATH_OFFSETS[color];
+        if (this.hasOpponentBlockade(color, startPos)) return null;
+        return startPos;
+      }
+      
+      if (currentPos >= 0 && currentPos <= 51) {
+        let relStart = PATH_OFFSETS[color];
+        let traveled = (currentPos >= relStart) ? (currentPos - relStart) : (52 - relStart + currentPos);
+        
+        if (traveled + roll <= 50) {
+          for (let step = 1; step <= roll; step++) {
+            let checkPos = (currentPos + step) % 52;
+            if (this.hasOpponentBlockade(color, checkPos)) return null;
+          }
+          return (currentPos + roll) % 52;
+        } else {
+          let stepsOnMain = 50 - traveled;
+          for (let step = 1; step <= stepsOnMain; step++) {
+            let checkPos = (currentPos + step) % 52;
+            if (this.hasOpponentBlockade(color, checkPos)) return null;
+          }
+          
+          let homeStepsNeeded = (traveled + roll) - 50;
+          if (homeStepsNeeded <= 6) {
+            if (homeStepsNeeded === 6) return 100;
+            return HOME_PATH_START[color] + homeStepsNeeded - 1;
+          } else {
+            return null;
+          }
+        }
+      } else if (currentPos >= 52 && currentPos <= 71) {
+        let homeStart = HOME_PATH_START[color];
+        let stepsInHome = currentPos - homeStart + 1;
+        let nextSteps = stepsInHome + roll;
+        if (nextSteps === 6) return 100;
+        if (nextSteps < 6) return homeStart + nextSteps - 1;
+        return null;
+      }
+      return null;
+    }
+    
+    moveToken(tokenId, steps) {
+      let token = this.tokens[tokenId];
+      let color = token.color;
+      let nextPos = this.calculateNextPosition(token.pos, color, steps);
+      
+      if (nextPos === null) return { captured: false, finished: false, bonusTurn: false };
+      
+      let captured = false;
+      let finished = false;
+      
+      if (nextPos === 100) {
+        finished = true;
+      } else if (nextPos >= 0 && nextPos <= 51 && !STAR_ZONES.includes(nextPos)) {
+        for (let tid in this.tokens) {
+          let t = this.tokens[tid];
+          let isEnemy = this.settings.alliance ? (this.getTeam(t.color) !== this.getTeam(color)) : (t.color !== color);
+          if (isEnemy && t.pos === nextPos) {
+            if (!t.shield) {
+               t.pos = -1;
+               captured = true;
+               this.log.push(`${color} captured ${t.color}!`);
+            } else {
+               t.shield = false;
+               this.log.push(`${color} broke ${t.color}'s shield!`);
+            }
+          }
+        }
+      }
+      
+      token.pos = nextPos;
+      
+      if (this.settings.bounties && this.bounties) {
+         let bountyIdx = this.bounties.findIndex(b => b.pos === nextPos);
+         if (bountyIdx !== -1) {
+            let b = this.bounties[bountyIdx];
+            if (b.type === 'shield') token.shield = true;
+            if (b.type === 'golden_dice') this.guaranteedSix[color] = true;
+            this.bounties.splice(bountyIdx, 1);
+         }
+      }
+      
+      if (this.settings.splitMoves) {
+         this.remainingRoll -= steps;
+      } else {
+         this.remainingRoll = 0;
+      }
+      
+      let bonusTurn = (steps === 6 || captured || finished);
+      
+      if (this.settings.splitMoves && this.remainingRoll > 0) {
+         if (bonusTurn) this.earnedBonus = true; 
+         return { captured, finished, bonusTurn: false };
+      }
+      
+      this.hasRolled = false;
+      
+      if (this.settings.splitMoves && this.earnedBonus) {
+         bonusTurn = true;
+         this.earnedBonus = false;
+      }
+      
+      if (steps !== 6) {
+        this.sixesRolled = 0;
+      }
+      
+      this.checkWinCondition();
+      
+      if (!bonusTurn && !this.winner) {
+        this.nextTurn();
+      } else if (bonusTurn) {
+        this.hasRolled = false;
+        this.diceRoll = null;
+        this.rollId = null;
+      }
+      
+      return { captured, finished, bonusTurn };
+    }
+    
+    nextTurn() {
+      this.turnIndex = (this.turnIndex + 1) % this.players.length;
+      this.sixesRolled = 0;
+      this.hasRolled = false;
+      this.diceRoll = null;
+      this.rollId = null;
+      this.turnCount++;
+    }
+    
+    checkWinCondition() {
+      if (this.settings.alliance) {
+         let team1Count = 0; let team2Count = 0;
+         for (let tid in this.tokens) {
+            if (this.tokens[tid].pos === 100) {
+               if (this.getTeam(this.tokens[tid].color) === 1) team1Count++;
+               if (this.getTeam(this.tokens[tid].color) === 2) team2Count++;
+            }
+         }
+         if (team1Count === 8) this.winner = 'Red/Green Alliance';
+         if (team2Count === 8) this.winner = 'Blue/Yellow Alliance';
+      } else {
+         let homeCount = 0;
+         for (let i=0; i<4; i++) {
+           if (this.tokens[`${this.currentColor}_${i}`].pos === 100) homeCount++;
+         }
+         if (homeCount === 4) {
+           this.winner = this.currentColor;
+         }
+      }
+    }
+    
+    serialize() {
+      return {
+        turnIndex: this.turnIndex,
+        diceRoll: this.diceRoll,
+        rollId: this.rollId,
+        hasRolled: this.hasRolled,
+        sixesRolled: this.sixesRolled,
+        tokens: JSON.parse(JSON.stringify(this.tokens)),
+        winner: this.winner,
+        spectators: this.spectators,
+        reactions: this.reactions,
+        settings: this.settings,
+        bounties: this.bounties,
+        guaranteedSix: this.guaranteedSix,
+        turnCount: this.turnCount,
+        remainingRoll: this.remainingRoll,
+        earnedBonus: this.earnedBonus
+      };
+    }
+    
+    deserialize(data) {
+      if (!data) return;
+      this.turnIndex = data.turnIndex;
+      this.diceRoll = data.diceRoll;
+      this.rollId = data.rollId;
+      this.hasRolled = data.hasRolled;
+      this.sixesRolled = data.sixesRolled;
+      this.tokens = data.tokens;
+      this.winner = data.winner;
+      this.spectators = data.spectators || [];
+      this.reactions = data.reactions || [];
+      this.settings = data.settings || {};
+      this.bounties = data.bounties || [];
+      this.guaranteedSix = data.guaranteedSix || {};
+      this.turnCount = data.turnCount || 0;
+      this.remainingRoll = data.remainingRoll || 0;
+      this.earnedBonus = !!data.earnedBonus;
+    }
+  }
+
+  return { GameState, COLORS, STAR_ZONES, PATH_OFFSETS, HOME_PATH_START };
+})();
+</script>

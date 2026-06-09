@@ -1,0 +1,79 @@
+<script>
+const LudoBot = {
+  playTurn(state, rollDiceCb, moveTokenCb) {
+    setTimeout(async () => {
+       if (!state.hasRolled) {
+          await rollDiceCb();
+          setTimeout(() => this.executeMoves(state, moveTokenCb), 800);
+       } else {
+          this.executeMoves(state, moveTokenCb);
+       }
+    }, 500);
+  },
+  
+  executeMoves(state, moveTokenCb) {
+     let validMoves = state.getValidMoves(state.currentColor, state.diceRoll);
+     if (validMoves.length === 0) {
+        return;
+     }
+     
+     let bestMove = null;
+     let bestScore = -999;
+     let bestSteps = 0;
+     
+     let maxSteps = (state.settings && state.settings.splitMoves) ? state.remainingRoll : state.diceRoll;
+     
+     for (let tid of validMoves) {
+        let t = state.tokens[tid];
+        if (state.settings && state.settings.splitMoves) {
+           for (let s = 1; s <= maxSteps; s++) {
+              let score = this.evaluateMove(state, tid, s);
+              if (score > bestScore) {
+                 bestScore = score; bestMove = tid; bestSteps = s;
+              }
+           }
+        } else {
+           let score = this.evaluateMove(state, tid, maxSteps);
+           if (score > bestScore) {
+              bestScore = score; bestMove = tid; bestSteps = maxSteps;
+           }
+        }
+     }
+     
+     moveTokenCb(bestMove, bestSteps);
+  },
+  
+  evaluateMove(state, tid, steps) {
+      let t = state.tokens[tid];
+      let score = 0;
+      let nextPos = state.calculateNextPosition(t.pos, t.color, steps);
+      if (nextPos === null) return -999;
+      
+      if (nextPos === 100) score += 1000;
+      
+      if (nextPos >= 0 && nextPos <= 51 && !LudoEngine.STAR_ZONES.includes(nextPos)) {
+          for (let enemyId in state.tokens) {
+             let e = state.tokens[enemyId];
+             let isEnemy = (state.settings && state.settings.alliance) ? (state.getTeam(e.color) !== state.getTeam(t.color)) : (e.color !== t.color);
+             if (isEnemy && e.pos === nextPos) {
+                 if (!e.shield) score += 500;
+                 else score += 200; 
+             }
+          }
+      }
+      
+      if (t.pos === -1) score += 300;
+      score += steps * 5;
+      
+      if (state.settings && state.settings.bounties && state.bounties) {
+         let b = state.bounties.find(x => x.pos === nextPos);
+         if (b) {
+            if (b.type === 'shield') score += 200;
+            if (b.type === 'golden_dice') score += 250;
+         }
+      }
+      
+      return score;
+  }
+};
+</script>

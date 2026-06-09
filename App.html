@@ -556,32 +556,41 @@ const renderer = {
     
     // (Border completely removed as per user request)
 
-    // ─── Base Quadrants (with gradient fills) ────────
-    const drawQuadrantGradient = (x, y, w, h, color1, color2) => {
+    // ─── Base Quadrants (with gradient fills & 3D borders) ────────
+    const draw3DQuadrant = (x, y, w, h, baseColor, lightColor) => {
       const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, color1);
-      grad.addColorStop(1, color2);
+      grad.addColorStop(0, baseColor);
+      grad.addColorStop(1, lightColor);
       ctx.fillStyle = grad;
       ctx.fillRect(x, y, w, h);
+
+      // Dark bottom-right border for 3D depth
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = cs * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x + w, y + h);
+      ctx.lineTo(x + w, y);
+      ctx.stroke();
+
+      // Light top-left border for 3D highlight
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x, y);
+      ctx.lineTo(x + w, y);
+      ctx.stroke();
     };
 
-    drawQuadrantGradient(0, 0, cs * 6, cs * 6, c.red, '#FF5252');
-    drawQuadrantGradient(cs * 9, 0, cs * 6, cs * 6, c.green, '#66BB6A');
-    drawQuadrantGradient(cs * 9, cs * 9, cs * 6, cs * 6, c.yellow, '#FFEE58');
-    drawQuadrantGradient(0, cs * 9, cs * 6, cs * 6, c.blue, '#42A5F5');
-
-    // Quadrant inner borders (subtle depth)
-    ctx.lineWidth = cs * 0.06;
-    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-    ctx.strokeRect(0, 0, cs * 6, cs * 6);
-    ctx.strokeRect(cs * 9, 0, cs * 6, cs * 6);
-    ctx.strokeRect(cs * 9, cs * 9, cs * 6, cs * 6);
-    ctx.strokeRect(0, cs * 9, cs * 6, cs * 6);
+    draw3DQuadrant(0, 0, cs * 6, cs * 6, c.red, '#FF5252');
+    draw3DQuadrant(cs * 9, 0, cs * 6, cs * 6, c.green, '#66BB6A');
+    draw3DQuadrant(cs * 9, cs * 9, cs * 6, cs * 6, c.yellow, '#FFEE58');
+    draw3DQuadrant(0, cs * 9, cs * 6, cs * 6, c.blue, '#42A5F5');
 
     // ─── Base inner white area with shadow ────────
     ctx.shadowColor = c.shadow;
     ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 3;
+    ctx.shadowOffsetY = 4;
     ctx.fillStyle = c.cellBg;
 
     const drawRoundedRect = (x, y, w, h, r) => {
@@ -607,7 +616,7 @@ const renderer = {
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
 
-    // Draw base token circles (home positions)
+    // Draw base token cups (3D recessed holes)
     const baseTokenPositions = {
       'red': [{ x: 2.25, y: 2.25 }, { x: 3.75, y: 2.25 }, { x: 2.25, y: 3.75 }, { x: 3.75, y: 3.75 }],
       'green': [{ x: 11.25, y: 2.25 }, { x: 12.75, y: 2.25 }, { x: 11.25, y: 3.75 }, { x: 12.75, y: 3.75 }],
@@ -617,12 +626,22 @@ const renderer = {
 
     for (let col in baseTokenPositions) {
       baseTokenPositions[col].forEach(pos => {
+        // Draw cup bottom
         ctx.beginPath();
         ctx.arc(pos.x * cs, pos.y * cs, cs * 0.38, 0, Math.PI * 2);
-        ctx.fillStyle = c.cellBg;
+        ctx.fillStyle = '#EAEAEA';
         ctx.fill();
+
+        // Inner shadow to represent physical depth
+        let cupGrad = ctx.createRadialGradient(pos.x * cs, pos.y * cs, cs * 0.2, pos.x * cs, pos.y * cs, cs * 0.38);
+        cupGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        cupGrad.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.fillStyle = cupGrad;
+        ctx.fill();
+
+        // Outer border line
         ctx.strokeStyle = c[col];
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
       });
     }
@@ -641,10 +660,16 @@ const renderer = {
       ctx.lineTo(t.points[1][0] * cs, t.points[1][1] * cs);
       ctx.lineTo(t.points[2][0] * cs, t.points[2][1] * cs);
       ctx.closePath();
-      ctx.fillStyle = t.color;
+      
+      // Sloped 3D gradient darkening towards center
+      let grad = ctx.createLinearGradient(t.points[0][0] * cs, t.points[0][1] * cs, t.points[2][0] * cs, t.points[2][1] * cs);
+      grad.addColorStop(0, t.color);
+      grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+      ctx.fillStyle = grad;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 1;
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     });
 
@@ -652,19 +677,34 @@ const renderer = {
     ctx.font = `${cs * 0.6}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fillText('🏠', 7.5 * cs, 7.5 * cs);
 
-    // ─── Track Cells ────────
-    ctx.lineWidth = 0.8;
+    // ─── Track Cells (with 3D Tile Beveling) ────────
     for (let cell of this.cells) {
-      ctx.fillStyle = c.cellBg;
+      // Base cell gradient
+      let cellGrad = ctx.createLinearGradient(cell.x * cs, cell.y * cs, (cell.x + 1) * cs, (cell.y + 1) * cs);
+      cellGrad.addColorStop(0, '#FFFFFF');
+      cellGrad.addColorStop(1, '#ECECEC');
+      ctx.fillStyle = cellGrad;
       ctx.fillRect(cell.x * cs, cell.y * cs, cs, cs);
-      ctx.strokeStyle = c.cellBorder;
+
+      // Soft boundary
+      ctx.strokeStyle = 'rgba(0,0,0,0.09)';
+      ctx.lineWidth = 1;
       ctx.strokeRect(cell.x * cs, cell.y * cs, cs, cs);
+
+      // Bevel Highlights (raised edges)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cell.x * cs + 0.5, cell.y * cs + cs - 0.5);
+      ctx.lineTo(cell.x * cs + 0.5, cell.y * cs + 0.5);
+      ctx.lineTo(cell.x * cs + cs - 0.5, cell.y * cs + 0.5);
+      ctx.stroke();
     }
 
-    // ─── Home Path Cells (colored) ────────
+    // ─── Home Path Cells (colored with 3D bevels) ────────
     for (let col in this.homeCells) {
       for (let cell of this.homeCells[col]) {
         const grad = ctx.createLinearGradient(cell.x * cs, cell.y * cs, cell.x * cs + cs, cell.y * cs + cs);
@@ -672,28 +712,60 @@ const renderer = {
         grad.addColorStop(1, c[col + 'Dark'] || c[col]);
         ctx.fillStyle = grad;
         ctx.fillRect(cell.x * cs, cell.y * cs, cs, cs);
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+
+        // Dark bevel borders
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 1;
         ctx.strokeRect(cell.x * cs, cell.y * cs, cs, cs);
+
+        // Light bevel highlights
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cell.x * cs + 0.5, cell.y * cs + cs - 0.5);
+        ctx.lineTo(cell.x * cs + 0.5, cell.y * cs + 0.5);
+        ctx.lineTo(cell.x * cs + cs - 0.5, cell.y * cs + 0.5);
+        ctx.stroke();
       }
     }
 
-    // ─── Safe / Star Zones ────────
+    // ─── Safe / Star Zones (3D tiles) ────────
     for (let i of LudoEngine.STAR_ZONES) {
       let cell = this.cells[i];
       let safeCol = c.starBg;
-      if (i === 0) safeCol = c.red;
-      else if (i === 13) safeCol = c.green;
-      else if (i === 26) safeCol = c.yellow;
-      else if (i === 39) safeCol = c.blue;
+      let safeColLight = '#F0F0F0';
+      if (i === 0) { safeCol = c.red; safeColLight = '#FF5252'; }
+      else if (i === 13) { safeCol = c.green; safeColLight = '#66BB6A'; }
+      else if (i === 26) { safeCol = c.yellow; safeColLight = '#FFEE58'; }
+      else if (i === 39) { safeCol = c.blue; safeColLight = '#42A5F5'; }
 
-      ctx.fillStyle = safeCol;
+      let cellGrad = ctx.createLinearGradient(cell.x * cs, cell.y * cs, (cell.x + 1) * cs, (cell.y + 1) * cs);
+      cellGrad.addColorStop(0, safeColLight);
+      cellGrad.addColorStop(1, safeCol);
+      ctx.fillStyle = cellGrad;
       ctx.fillRect(cell.x * cs, cell.y * cs, cs, cs);
-      ctx.strokeStyle = c.cellBorder;
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1;
       ctx.strokeRect(cell.x * cs, cell.y * cs, cs, cs);
 
-      // Draw star shape instead of emoji for premium look
+      // Light bevel highlights
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cell.x * cs + 0.5, cell.y * cs + cs - 0.5);
+      ctx.lineTo(cell.x * cs + 0.5, cell.y * cs + 0.5);
+      ctx.lineTo(cell.x * cs + cs - 0.5, cell.y * cs + 0.5);
+      ctx.stroke();
+
+      // Draw star shape with shadow
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1;
       this.drawStar(ctx, cell.x * cs + cs * 0.5, cell.y * cs + cs * 0.5, 5, cs * 0.25, cs * 0.12,
-        (i === 0 || i === 13 || i === 26 || i === 39) ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.12)');
+        (i === 0 || i === 13 || i === 26 || i === 39) ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.15)');
+      ctx.restore();
     }
 
     // Starting arrows on colored safe zones
@@ -774,7 +846,7 @@ const renderer = {
     for (let k in this.visualTokens) {
       let vt = this.visualTokens[k];
       let color = k.split('_')[0];
-      let size = cs * 0.35;
+      let size = cs * 0.36;
 
       let tLogical = gameManager.state ? gameManager.state.tokens[k] : null;
       let isValid = isMyTurn && validMoves.includes(k);
@@ -784,58 +856,66 @@ const renderer = {
         ctx.beginPath();
         ctx.arc(vt.x, vt.y, size + 6 + (pulse * 6), 0, Math.PI * 2);
         let gradPulse = ctx.createRadialGradient(vt.x, vt.y, size, vt.x, vt.y, size + 12);
-        gradPulse.addColorStop(0, `rgba(255, 215, 0, ${0.6 + pulse * 0.4})`);
+        gradPulse.addColorStop(0, `rgba(255, 215, 0, ${0.5 + pulse * 0.3})`);
         gradPulse.addColorStop(1, 'rgba(255, 215, 0, 0)');
         ctx.fillStyle = gradPulse;
         ctx.fill();
       }
 
-      // ─── Premium 3D Token Rendering ────────
+      // ─── Premium 3D Stand-up Pawn Rendering ────────
       
-      // 1. Cast shadow (offset bottom right)
+      // 1. Cast shadow (offset bottom right and blurred)
       ctx.beginPath();
-      ctx.ellipse(vt.x + size * 0.15, vt.y + size * 0.25, size, size * 0.9, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.ellipse(vt.x + size * 0.2, vt.y + size * 0.35, size * 0.95, size * 0.45, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
       ctx.fill();
 
-      // 2. Token Base (Outer rim, giving it height)
+      // 2. Token Base (Elliptical base rim)
       ctx.beginPath();
-      ctx.arc(vt.x, vt.y, size, 0, Math.PI * 2);
-      let baseGrad = ctx.createLinearGradient(vt.x - size, vt.y - size, vt.x + size, vt.y + size);
-      baseGrad.addColorStop(0, colors[color]);
+      ctx.ellipse(vt.x, vt.y + size * 0.25, size * 0.85, size * 0.4, 0, 0, Math.PI * 2);
+      let baseGrad = ctx.createLinearGradient(vt.x - size, vt.y, vt.x + size, vt.y + size * 0.5);
+      baseGrad.addColorStop(0, darkColors[color]);
+      baseGrad.addColorStop(0.5, colors[color]);
       baseGrad.addColorStop(1, darkColors[color]);
       ctx.fillStyle = baseGrad;
       ctx.fill();
-      
-      // Outer border to contain the shape cleanly
-      ctx.beginPath();
-      ctx.arc(vt.x, vt.y, size, 0, Math.PI * 2);
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = "rgba(0,0,0,0.2)";
-      ctx.stroke();
-
-      // 3. Inner Indentation (Creates the physical rim effect)
-      ctx.beginPath();
-      ctx.arc(vt.x, vt.y, size * 0.75, 0, Math.PI * 2);
-      let indentGrad = ctx.createLinearGradient(vt.x - size, vt.y - size, vt.x + size, vt.y + size);
-      indentGrad.addColorStop(0, darkColors[color]);
-      indentGrad.addColorStop(1, colors[color]);
-      ctx.fillStyle = indentGrad;
-      ctx.fill();
-
-      // 4. Center pip (Optional, adds detail)
-      ctx.beginPath();
-      ctx.arc(vt.x, vt.y, size * 0.3, 0, Math.PI * 2);
-      ctx.fillStyle = colors[color];
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // 5. Specular Highlight (Glossy plastic shine)
+      // 3. Pawn Stem/Body (Conical tapered waist connecting base to head)
       ctx.beginPath();
-      ctx.ellipse(vt.x - size * 0.3, vt.y - size * 0.4, size * 0.35, size * 0.15, Math.PI / -6, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.moveTo(vt.x - size * 0.45, vt.y + size * 0.15);
+      ctx.bezierCurveTo(vt.x - size * 0.35, vt.y - size * 0.2, vt.x - size * 0.28, vt.y - size * 0.4, vt.x - size * 0.2, vt.y - size * 0.5);
+      ctx.lineTo(vt.x + size * 0.2, vt.y - size * 0.5);
+      ctx.bezierCurveTo(vt.x + size * 0.28, vt.y - size * 0.4, vt.x + size * 0.35, vt.y - size * 0.2, vt.x + size * 0.45, vt.y + size * 0.15);
+      ctx.closePath();
+      let bodyGrad = ctx.createLinearGradient(vt.x - size * 0.5, vt.y - size * 0.5, vt.x + size * 0.5, vt.y + size * 0.15);
+      bodyGrad.addColorStop(0, colors[color]);
+      bodyGrad.addColorStop(1, darkColors[color]);
+      ctx.fillStyle = bodyGrad;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.stroke();
+
+      // 4. Pawn Head (Spherical ball resting on top of the stem)
+      let headY = vt.y - size * 0.6;
+      let headR = size * 0.6;
+      ctx.beginPath();
+      ctx.arc(vt.x, headY, headR, 0, Math.PI * 2);
+      let headGrad = ctx.createRadialGradient(vt.x - headR * 0.3, headY - headR * 0.3, headR * 0.1, vt.x, headY, headR);
+      headGrad.addColorStop(0, '#FFFFFF'); // Specular light highlight source
+      headGrad.addColorStop(0.3, colors[color]);
+      headGrad.addColorStop(1, darkColors[color]);
+      ctx.fillStyle = headGrad;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
+      ctx.stroke();
+
+      // 5. Glossy reflection/specular shine on the body/stem
+      ctx.beginPath();
+      ctx.ellipse(vt.x - size * 0.1, vt.y - size * 0.15, size * 0.12, size * 0.22, Math.PI / 12, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
       ctx.fill();
 
       // Shield effect

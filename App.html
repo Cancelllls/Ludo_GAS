@@ -547,14 +547,10 @@ const renderer = {
     };
   },
 
-  drawBoard() {
-    const ctx = this.ctx;
+  drawStaticBoardTo(ctx) {
     const cs = this.cs;
     const c = this.getBoardColors();
-    // Clear canvas to let CSS background show through
     ctx.clearRect(0, 0, this.size, this.size);
-    
-    // (Border completely removed as per user request)
 
     // ─── Base Quadrants (with gradient fills & 3D borders) ────────
     const draw3DQuadrant = (x, y, w, h, baseColor, lightColor) => {
@@ -785,8 +781,32 @@ const renderer = {
       const arrows = { right: '▶', up: '▲', left: '◀', down: '▼' };
       ctx.fillText(arrows[a.dir], cell.x * cs + cs * 0.5, cell.y * cs + cs * 0.5);
     });
+  },
 
-    // ─── Bounties ────────
+  drawBoard() {
+    if (!this.offscreenCanvas) {
+      this.offscreenCanvas = document.createElement('canvas');
+      this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+    }
+    
+    // Auto-update offscreen canvas size and cache board pixels when canvas size changes
+    if (this.offscreenCanvas.width !== this.size || this.offscreenCanvas.height !== this.size) {
+      this.offscreenCanvas.width = this.size;
+      this.offscreenCanvas.height = this.size;
+      this.drawStaticBoardTo(this.offscreenCtx);
+    }
+    
+    // Single lightning-fast bitwise image transfer from offscreen cache!
+    this.ctx.clearRect(0, 0, this.size, this.size);
+    this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+    
+    // Draw dynamic bounties on top of cached background
+    this.drawBounties();
+  },
+
+  drawBounties() {
+    const ctx = this.ctx;
+    const cs = this.cs;
     if (gameManager.state && gameManager.state.settings && gameManager.state.bounties) {
       gameManager.state.bounties.forEach(b => {
         let bc = this.getCoords('red', b.pos);
@@ -1498,15 +1518,28 @@ const multiplayerManager = {
     }
   },
 
+  lobbyActive: false,
   startLobbyPolling() {
-    if (this.lobbyTimer) return;
-    this.refreshLobby();
-    this.lobbyTimer = setInterval(() => this.refreshLobby(), 3000);
+    this.lobbyActive = true;
+    this.scheduleNextLobbyPoll(100);
   },
 
   stopLobbyPolling() {
-    if (this.lobbyTimer) clearInterval(this.lobbyTimer);
-    this.lobbyTimer = null;
+    this.lobbyActive = false;
+    if (this.lobbyTimer) {
+      clearTimeout(this.lobbyTimer);
+      this.lobbyTimer = null;
+    }
+  },
+
+  scheduleNextLobbyPoll(delay = 3000) {
+    if (this.lobbyTimer) clearTimeout(this.lobbyTimer);
+    if (!this.lobbyActive) return;
+    this.lobbyTimer = setTimeout(async () => {
+      if (!this.lobbyActive) return;
+      await this.refreshLobby();
+      this.scheduleNextLobbyPoll(3000);
+    }, delay);
   },
 
   async refreshLobby() {
@@ -1628,14 +1661,28 @@ const multiplayerManager = {
     } catch (e) { }
   },
 
+  pollingActive: false,
   startPolling() {
-    if (this.pollTimer) clearInterval(this.pollTimer);
-    this.pollTimer = setInterval(() => this.poll(), 2000);
+    this.pollingActive = true;
+    this.scheduleNextPoll(100);
   },
 
   stopPolling() {
-    if (this.pollTimer) clearInterval(this.pollTimer);
-    this.pollTimer = null;
+    this.pollingActive = false;
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+  },
+
+  scheduleNextPoll(delay = 2000) {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    if (!this.pollingActive) return;
+    this.pollTimer = setTimeout(async () => {
+      if (!this.pollingActive) return;
+      await this.poll();
+      this.scheduleNextPoll(2000);
+    }, delay);
   },
 
   async poll() {

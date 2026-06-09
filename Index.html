@@ -1,204 +1,511 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Ludo King — The classic board game of strategy and luck. Play online or locally with friends and bots.">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="color-scheme" content="light dark">
+  <title>Ludo King</title>
   <base target="_top">
   <?!= include('Style'); ?>
 </head>
 <body>
-  
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  GLOBAL: Dark-Mode Toggle                              -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <button id="dark-mode-toggle" class="dark-mode-toggle" aria-label="Toggle dark mode">
+    <span class="toggle-icon">🌙</span>
+  </button>
+
+  <!-- Celebration confetti container (used by App.html) -->
+  <div id="celebration-container" class="hidden"></div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  BACKGROUND PARTICLE CANVAS                            -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <canvas id="particle-canvas" class="particle-canvas"></canvas>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  CELEBRATION / CONFETTI OVERLAY                        -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div id="celebration-overlay" class="celebration-overlay hidden">
+    <canvas id="confetti-canvas"></canvas>
+    <div class="celebration-content">
+      <div class="trophy-icon">🏆</div>
+      <h2 id="winner-text" class="winner-text">Winner!</h2>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  UI CONTAINER — All Screens                            -->
+  <!-- ═══════════════════════════════════════════════════════ -->
   <div id="ui-container">
+
+    <!-- ─────────────────────────────────────────────────── -->
+    <!--  MAIN MENU                                         -->
+    <!-- ─────────────────────────────────────────────────── -->
     <div id="main-menu" class="menu-screen">
-      <h1 style="font-size: 52px; background: linear-gradient(to right, #ffd000, #ff8c00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0px 6px 10px rgba(0,0,0,0.4); margin-bottom: 35px; letter-spacing: 2px;">LUDO KING</h1>
-      <div class="menu-buttons">
-        <button onclick="uiManager.showLocalMenu()">Pass & Play / Vs Computer</button>
-        <button onclick="uiManager.showOnlineMenu()">Play Online</button>
+      <div class="main-menu-inner">
+        <div class="crown-icon">👑</div>
+        <h1 class="game-title">LUDO KING</h1>
+        <p class="version-text">v2.0 — Premium Edition</p>
+
+        <div class="menu-buttons">
+          <button class="btn-primary" onclick="uiManager.showLocalMenu()">
+            <span class="btn-icon">🎮</span> Pass &amp; Play / Vs Computer
+          </button>
+          <button class="btn-primary" onclick="uiManager.showOnlineMenu()">
+            <span class="btn-icon">🌐</span> Play Online
+          </button>
+        </div>
       </div>
     </div>
-    
+
+    <!-- ─────────────────────────────────────────────────── -->
+    <!--  LOCAL / VS COMPUTER MENU                          -->
+    <!-- ─────────────────────────────────────────────────── -->
     <div id="local-menu" class="menu-screen hidden">
-      <h2 style="color: var(--accent-color);">Vs Computer / Local</h2>
-      <div class="player-select">
-        <label>Total Players (Humans + Bots):</label>
-        <select id="local-player-count">
+      <h2 class="menu-heading">🎲 Vs Computer / Local</h2>
+
+      <div class="select-group">
+        <label class="select-label" for="local-player-count">Total Players (Humans + Bots):</label>
+        <select id="local-player-count" class="select-input">
           <option value="2">2 Players</option>
           <option value="3">3 Players</option>
           <option value="4" selected>4 Players</option>
         </select>
       </div>
-      <div class="bot-select" style="margin-bottom:15px;">
-        <label>Number of Bots:</label>
-        <select id="local-bot-count">
+
+      <div class="select-group">
+        <label class="select-label" for="local-bot-count">Number of Bots:</label>
+        <select id="local-bot-count" class="select-input">
           <option value="0">0 Bots (All Human)</option>
           <option value="1">1 Bot</option>
           <option value="2">2 Bots</option>
           <option value="3" selected>3 Bots</option>
         </select>
       </div>
-      
-      <div style="margin-bottom: 15px; border: 1px solid var(--accent-color); padding: 12px; border-radius: 8px; text-align:left; background: rgba(0,0,0,0.2);">
-        <h3 style="margin-top:0; color:var(--accent-color); font-size: 16px; text-align:center; text-transform:uppercase; letter-spacing:1px;">Match Settings</h3>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:14px; color:#e0e0e0;">
-          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-threeSixes" checked> 3 Sixes Penalty</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-autoMove" checked> Auto-Move</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-blockades" checked> Blockades</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-split"> Move Splitting</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-bounties"> Dynamic Bounties</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="local-setting-blitz"> Blitz Timer (15s)</label>
-          <label style="grid-column: span 2; text-align:center; color:var(--primary-color); font-weight:bold; cursor:pointer;"><input type="checkbox" id="local-setting-alliance"> 2v2 Alliance Mode</label>
+
+      <div class="settings-panel">
+        <h3 class="settings-heading">⚙️ Match Settings</h3>
+        <div class="settings-grid">
+          <label class="toggle-switch-label">
+            <span class="toggle-text">3 Sixes Penalty</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-threeSixes" checked>
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Auto-Move</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-autoMove" checked>
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Blockades</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-blockades" checked>
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Move Splitting</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-split">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Dynamic Bounties</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-bounties">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Blitz Timer (15s)</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-blitz">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label alliance-toggle">
+            <span class="toggle-text">🤝 2v2 Alliance Mode</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="local-setting-alliance">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
         </div>
       </div>
-      
+
       <div class="menu-buttons">
-        <button onclick="gameManager.startLocalGame()">Start Game</button>
-        <button class="back-btn" onclick="uiManager.showMainMenu()">Back</button>
+        <button class="btn-primary" onclick="gameManager.startLocalGame()">🚀 Start Game</button>
+        <button class="btn-secondary back-btn" onclick="uiManager.showMainMenu()">← Back</button>
       </div>
     </div>
 
+    <!-- ─────────────────────────────────────────────────── -->
+    <!--  ONLINE LOBBY MENU                                 -->
+    <!-- ─────────────────────────────────────────────────── -->
     <div id="online-menu" class="menu-screen hidden">
-      <h2 style="color: var(--accent-color);">Online Lobby</h2>
-      <input type="text" id="player-name" placeholder="Enter your name" maxlength="15">
-      
-      <div style="margin-bottom: 15px; text-align:center;">
-        <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--accent-color);">Select Your Color:</label>
-        <div id="color-selector" style="display:flex; justify-content:center; gap:10px;">
-          <button class="color-btn selected" data-color="red" style="background:var(--red); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('red')"></button>
-          <button class="color-btn" data-color="green" style="background:var(--green); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('green')"></button>
-          <button class="color-btn" data-color="yellow" style="background:var(--yellow); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('yellow')"></button>
-          <button class="color-btn" data-color="blue" style="background:var(--blue); width:40px; height:40px; border-radius:50%; border:2px solid transparent;" onclick="multiplayerManager.selectColor('blue')"></button>
+      <h2 class="menu-heading">🌐 Online Lobby</h2>
+
+      <input type="text" id="player-name" class="text-input" placeholder="Enter your name" maxlength="15">
+
+      <div class="color-picker-section">
+        <label class="select-label">Select Your Color:</label>
+        <div id="color-selector" class="color-selector">
+          <button class="color-btn selected" data-color="red" style="background:var(--red);" onclick="multiplayerManager.selectColor('red')"></button>
+          <button class="color-btn" data-color="green" style="background:var(--green);" onclick="multiplayerManager.selectColor('green')"></button>
+          <button class="color-btn" data-color="yellow" style="background:var(--yellow);" onclick="multiplayerManager.selectColor('yellow')"></button>
+          <button class="color-btn" data-color="blue" style="background:var(--blue);" onclick="multiplayerManager.selectColor('blue')"></button>
         </div>
       </div>
-      
-      <div class="lobby-browser" id="lobby-browser" style="padding:10px; border-radius:8px; min-height:120px; max-height:200px; overflow-y:auto; margin-bottom:15px;">
-        <div style="text-align:center; color:#888;">Loading rooms...</div>
+
+      <div class="lobby-browser" id="lobby-browser">
+        <div class="lobby-placeholder">Loading rooms...</div>
       </div>
-      
-      <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-        <input type="checkbox" id="is-private-room" style="width:20px; height:20px; cursor:pointer;"> 
-        <label for="is-private-room" style="cursor:pointer; font-weight:bold;">Private Room</label>
-      </div>
-      
-      <div style="margin-bottom: 15px; border: 1px solid var(--accent-color); padding: 12px; border-radius: 8px; text-align:left; background: rgba(0,0,0,0.2);">
-        <h3 style="margin-top:0; color:var(--accent-color); font-size: 16px; text-align:center; text-transform:uppercase; letter-spacing:1px;">Host Settings</h3>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:14px; color:#e0e0e0;">
-          <label style="cursor:pointer;"><input type="checkbox" id="setting-threeSixes" checked> 3 Sixes Penalty</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="setting-autoMove" checked> Auto-Move</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="setting-blockades" checked> Blockades</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="setting-split"> Move Splitting</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="setting-bounties"> Dynamic Bounties</label>
-          <label style="cursor:pointer;"><input type="checkbox" id="setting-blitz"> Blitz Timer (15s)</label>
-          <label style="grid-column: span 2; text-align:center; color:var(--primary-color); font-weight:bold; cursor:pointer;"><input type="checkbox" id="setting-alliance"> 2v2 Alliance Mode</label>
+
+      <label class="toggle-switch-label" style="justify-content:center; margin-bottom:15px;">
+        <span class="toggle-text">🔒 Private Room</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="is-private-room">
+          <span class="toggle-slider"></span>
+        </div>
+      </label>
+
+      <div class="settings-panel">
+        <h3 class="settings-heading">⚙️ Host Settings</h3>
+        <div class="settings-grid">
+          <label class="toggle-switch-label">
+            <span class="toggle-text">3 Sixes Penalty</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-threeSixes" checked>
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Auto-Move</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-autoMove" checked>
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Blockades</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-blockades" checked>
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Move Splitting</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-split">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Dynamic Bounties</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-bounties">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label">
+            <span class="toggle-text">Blitz Timer (15s)</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-blitz">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <label class="toggle-switch-label alliance-toggle">
+            <span class="toggle-text">🤝 2v2 Alliance Mode</span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="setting-alliance">
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
         </div>
       </div>
-      
+
       <div class="menu-buttons">
-        <button onclick="multiplayerManager.refreshLobby()" style="background:var(--accent-color); color:white;">Refresh Public Lobby</button>
-        <button onclick="multiplayerManager.hostGame()">Create New Room</button>
+        <button class="btn-accent" onclick="multiplayerManager.refreshLobby()">🔄 Refresh Public Lobby</button>
+        <button class="btn-primary" onclick="multiplayerManager.hostGame()">🏠 Create New Room</button>
         <div class="join-section">
-          <input type="text" id="join-room-code" placeholder="PIN (e.g. 5829)" maxlength="4" style="text-align:center; font-weight:bold; letter-spacing:2px;">
-          <button onclick="multiplayerManager.joinGame()">Join / Spectate</button>
+          <input type="text" id="join-room-code" class="text-input pin-input" placeholder="PIN (e.g. 5829)" maxlength="4">
+          <button class="btn-primary" onclick="multiplayerManager.joinGame()">Join / Spectate</button>
         </div>
-        <button class="back-btn" onclick="uiManager.showMainMenu()">Back</button>
+        <button class="btn-secondary back-btn" onclick="uiManager.showMainMenu()">← Back</button>
       </div>
+
       <div id="online-status" class="status-msg"></div>
     </div>
 
+    <!-- ─────────────────────────────────────────────────── -->
+    <!--  WAITING ROOM                                      -->
+    <!-- ─────────────────────────────────────────────────── -->
     <div id="waiting-room" class="menu-screen hidden">
-      <h2 style="color: var(--accent-color);">Room PIN: <span id="display-room-code" style="color: var(--primary-color);"></span></h2>
+      <h2 class="menu-heading">Room PIN: <span id="display-room-code" class="highlight-code"></span></h2>
+
       <div class="players-list" id="room-players-list">
         <!-- Players will be populated here -->
       </div>
+
       <div class="players-list hidden" id="spectators-list-container" style="min-height:auto;">
-        <h4 style="margin:0 0 5px 0; color:var(--accent-color);">Spectators:</h4>
-        <div id="room-spectators-list" style="color:#ddd; font-size:14px;"></div>
+        <h4 class="spectators-heading">👁️ Spectators:</h4>
+        <div id="room-spectators-list" class="spectators-names"></div>
       </div>
-      
-      <div id="host-bot-controls" class="hidden" style="margin-bottom:15px; display:flex; gap:10px; align-items:center;">
-        <select id="bot-color-select" style="flex:1; margin:0;">
+
+      <div id="host-bot-controls" class="hidden host-bot-controls">
+        <select id="bot-color-select" class="select-input" style="flex:1;">
           <option value="red">Red Bot</option>
           <option value="green">Green Bot</option>
           <option value="yellow">Yellow Bot</option>
           <option value="blue">Blue Bot</option>
         </select>
-        <button onclick="multiplayerManager.addBot()" style="background:var(--accent-color); color:white; padding:8px 15px; margin:0;">Add Bot</button>
+        <button class="btn-accent" onclick="multiplayerManager.addBot()" style="padding:8px 15px; margin:0;">🤖 Add Bot</button>
       </div>
-      
+
       <div class="menu-buttons">
-        <button id="start-online-btn" class="hidden" onclick="multiplayerManager.startGame()">Start Game</button>
-        <button class="back-btn" onclick="multiplayerManager.leaveRoom()">Leave</button>
+        <button id="start-online-btn" class="btn-primary hidden" onclick="multiplayerManager.startGame()">🚀 Start Game</button>
+        <button class="btn-secondary back-btn" onclick="multiplayerManager.leaveRoom()">← Leave</button>
       </div>
+
       <div id="waiting-status" class="status-msg">Waiting for players...</div>
     </div>
-    
+
+    <!-- ─────────────────────────────────────────────────── -->
+    <!--  GAME SCREEN                                       -->
+    <!-- ─────────────────────────────────────────────────── -->
     <div id="game-screen" class="hidden">
+
+      <!-- ── Game Header ────────────────────────────────── -->
       <div class="game-header">
         <div id="turn-indicator" class="turn-box">Red's Turn</div>
-        <div id="blitz-display" class="hidden" style="color:var(--primary-color); font-weight:bold; font-size:20px;">
+        <div id="blitz-display" class="blitz-display hidden">
           ⏱️ <span id="blitz-time">15</span>s
         </div>
-        <div id="room-info" class="hidden" style="font-weight:bold;">PIN: <span id="game-room-code" style="color:var(--primary-color);"></span> <span id="spectator-badge" class="hidden" style="color:var(--primary-color); font-size:12px; margin-left:10px;">(SPECTATING)</span></div>
+        <div id="room-info" class="room-info hidden">
+          PIN: <span id="game-room-code" class="highlight-code"></span>
+          <span id="spectator-badge" class="spectator-badge hidden">(SPECTATING)</span>
+        </div>
       </div>
-      
-      <div class="canvas-container">
-        <canvas id="ludo-board"></canvas>
-        <div id="reaction-container" style="position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none;"></div>
-      </div>
-      
-      <div class="game-controls">
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div class="dice-container" id="dice-container" onclick="gameManager.rollDice()">
-            <div id="dice-value">🎲</div>
+
+      <!-- ── Game Layout: Player Panels + Board ─────────── -->
+      <div class="game-layout">
+
+        <!-- Top Row: Red (left) | Board | Green (right) -->
+        <div id="player-panel-red" class="player-panel" data-color="red">
+          <div class="panel-player-name" id="panel-name-red">Player 1</div>
+          <div class="panel-dice-container">
+            <div class="dice-3d" id="dice-3d-red">
+              <div class="dice-scene">
+                <div class="dice-cube">
+                  <div class="dice-face face-1"><span class="dot"></span></div>
+                  <div class="dice-face face-2"><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-4"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-5"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-6"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="emoji-panel" style="display:flex; gap:5px;" class="hidden">
-            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😂')">😂</button>
-            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😡')">😡</button>
-            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🎲')">🎲</button>
-            <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🏃‍♂️')">🏃‍♂️</button>
+          <div class="panel-score" id="panel-score-red">Home: <span>0</span>/4</div>
+        </div>
+
+        <div class="board-area">
+          <div class="canvas-container">
+            <canvas id="ludo-board"></canvas>
+            <div id="reaction-container" class="reaction-container"></div>
           </div>
         </div>
-        <div id="action-status">Roll the dice!</div>
-        <button id="quit-btn" onclick="gameManager.quitGame()">Quit</button>
-      </div>
-    </div>
 
-    <!-- Modals/Overlays -->
+        <div id="player-panel-green" class="player-panel" data-color="green">
+          <div class="panel-player-name" id="panel-name-green">Player 2</div>
+          <div class="panel-dice-container">
+            <div class="dice-3d" id="dice-3d-green">
+              <div class="dice-scene">
+                <div class="dice-cube">
+                  <div class="dice-face face-1"><span class="dot"></span></div>
+                  <div class="dice-face face-2"><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-4"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-5"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-6"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-score" id="panel-score-green">Home: <span>0</span>/4</div>
+        </div>
+
+        <!-- Bottom Row: Yellow (left) | (board spans) | Blue (right) -->
+        <div id="player-panel-yellow" class="player-panel" data-color="yellow">
+          <div class="panel-player-name" id="panel-name-yellow">Player 3</div>
+          <div class="panel-dice-container">
+            <div class="dice-3d" id="dice-3d-yellow">
+              <div class="dice-scene">
+                <div class="dice-cube">
+                  <div class="dice-face face-1"><span class="dot"></span></div>
+                  <div class="dice-face face-2"><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-4"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-5"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-6"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-score" id="panel-score-yellow">Home: <span>0</span>/4</div>
+        </div>
+
+        <div id="player-panel-blue" class="player-panel" data-color="blue">
+          <div class="panel-player-name" id="panel-name-blue">Player 4</div>
+          <div class="panel-dice-container">
+            <div class="dice-3d" id="dice-3d-blue">
+              <div class="dice-scene">
+                <div class="dice-cube">
+                  <div class="dice-face face-1"><span class="dot"></span></div>
+                  <div class="dice-face face-2"><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-4"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-5"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                  <div class="dice-face face-6"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-score" id="panel-score-blue">Home: <span>0</span>/4</div>
+        </div>
+
+      </div><!-- /.game-layout -->
+
+      <!-- ── Legacy Dice (hidden, kept for backward compat) ── -->
+      <div class="dice-container legacy-dice" id="dice-container" onclick="gameManager.rollDice()" style="display:none;">
+        <div id="dice-value">🎲</div>
+      </div>
+
+      <!-- ── Floating Emoji Panel ───────────────────────── -->
+      <div id="emoji-panel" class="emoji-panel hidden">
+        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😂')">😂</button>
+        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😡')">😡</button>
+        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🎲')">🎲</button>
+        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🏃‍♂️')">🏃‍♂️</button>
+        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('👏')">👏</button>
+        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('💀')">💀</button>
+      </div>
+
+      <!-- ── Game Controls Bar ──────────────────────────── -->
+      <div class="game-controls-bar">
+        <div id="action-status" class="action-status">Roll the dice!</div>
+        <button id="quit-btn" class="btn-danger" onclick="gameManager.quitGame()">✕ Quit</button>
+      </div>
+
+    </div><!-- /#game-screen -->
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--  MODALS / OVERLAYS                                 -->
+    <!-- ═══════════════════════════════════════════════════ -->
+
+    <!-- Generic Modal -->
     <div id="overlay" class="overlay hidden">
       <div class="modal">
-        <h3 id="modal-title" style="color:var(--primary-color); font-size:24px; margin-bottom:15px;">Game Over</h3>
-        <p id="modal-content" style="font-size:18px; line-height:1.4;"></p>
-        <button onclick="uiManager.closeModal()">OK</button>
+        <h3 id="modal-title" class="modal-title">Game Over</h3>
+        <p id="modal-content" class="modal-content"></p>
+        <button class="btn-primary" onclick="uiManager.closeModal()">OK</button>
       </div>
     </div>
-    
+
+    <!-- Split Move Modal -->
     <div id="split-overlay" class="overlay hidden">
       <div class="modal">
-        <h3 style="color:var(--primary-color); font-size:24px; margin-bottom:15px;">Split Move</h3>
-        <p style="font-size:18px;">Points remaining: <span id="split-points-left" style="font-weight:bold; color:var(--accent-color);"></span></p>
-        <div style="margin:20px 0;">
-          <input type="range" id="split-range" min="1" max="6" value="1" style="width:100%; cursor:pointer;">
-          <div style="font-size:22px; font-weight:bold; margin-top:10px;">Move: <span id="split-range-val" style="color:#fff;">1</span></div>
+        <h3 class="modal-title">✂️ Split Move</h3>
+        <p class="modal-content">
+          Points remaining: <span id="split-points-left" class="highlight-value"></span>
+        </p>
+        <div class="split-slider-area">
+          <input type="range" id="split-range" min="1" max="6" value="1" class="split-range">
+          <div class="split-value-display">Move: <span id="split-range-val">1</span></div>
         </div>
-        <div style="display:flex; gap:15px; margin-top:20px;">
-          <button onclick="uiManager.confirmSplit()" style="flex:1;">Confirm</button>
-          <button class="back-btn" onclick="uiManager.cancelSplit()" style="flex:1;">Cancel</button>
+        <div class="modal-actions">
+          <button class="btn-primary" onclick="uiManager.confirmSplit()">Confirm</button>
+          <button class="btn-secondary back-btn" onclick="uiManager.cancelSplit()">Cancel</button>
         </div>
       </div>
     </div>
-  </div>
 
+  </div><!-- /#ui-container -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  APPLICATION STATE & SCRIPT INCLUDES                   -->
+  <!-- ═══════════════════════════════════════════════════════ -->
   <script>
     const AppState = {
-      mode: 'menu', 
-      playerId: null, 
+      mode: 'menu',
+      playerId: null,
       isSpectator: false,
       roomCode: null,
       playerName: null,
       selectedColor: 'red'
     };
+
+    /* ── Particle Background ───────────────────────────── */
+    (function initParticles() {
+      const canvas = document.getElementById('particle-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      const COLORS = ['#ffd700','#ff8c00','#e74c3c','#3498db','#2ecc71','#9b59b6'];
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 3 + 1,
+          dx: (Math.random() - 0.5) * 0.6,
+          dy: (Math.random() - 0.5) * 0.6,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          alpha: Math.random() * 0.5 + 0.15
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.alpha;
+          ctx.fill();
+          p.x += p.dx;
+          p.y += p.dy;
+          if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+          if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
   </script>
-  
+
   <?!= include('Engine'); ?>
   <?!= include('Bot'); ?>
   <?!= include('App'); ?>
-  
+
 </body>
 </html>

@@ -5,7 +5,7 @@ A fully-featured, production-ready, zero-dependency clone of Ludo King running e
 ## 🚀 Features
 
 - **Real-Time Multiplayer**: Natively bypasses GAS web-socket limitations using Optimistic UI and hyper-optimized polling loops (`CacheService`).
-- **AAA Web-First UI/UX**: Features a highly polished, responsive, frosted-glass UI with 3D glossy tokens, dynamic shadows, and vibrant Ludo King gradients. Beautifully responsive to any browser or device size.
+- **Premium Desktop-First UI/UX**: Features a massive, perfectly-centered, borderless board optimized for desktop monitors. Boasts crisp high-DPI resolution scaling (`window.devicePixelRatio`) to prevent blurriness, a polished 3-column grid layout (with statistics and 3D dice controls consistently aligned next to player panels), and a responsive frosted-glass interface.
 - **Master Rules Engine**: Toggleable mechanics tailored for competitive play:
   - **3 Sixes Penalty**: Rolling three 6s in a row instantly forfeits the turn.
   - **Move Splitting**: Distribute dice roll points across multiple tokens sequentially via a native custom slider UI.

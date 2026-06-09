@@ -1,3 +1,4 @@
+// @ts-nocheck
 function doGet(e) {
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
@@ -9,9 +10,13 @@ function doGet(e) {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
-
 const CACHE_TIMEOUT = 21600; 
 const LOCK_TIMEOUT = 5000;
+const ROOM_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+function isRoomExpired(state) {
+  return state.createdAt && (Date.now() - state.createdAt) > ROOM_EXPIRY_MS;
+}
 
 function generateRoomCode() {
   const chars = '0123456789';
@@ -47,6 +52,10 @@ function getLobbyState() {
       let dataStr = roomData['R_' + rCode];
       if (dataStr) {
         let state = JSON.parse(dataStr);
+        if (isRoomExpired(state)) {
+          cache.remove('R_' + rCode);
+          continue;
+        }
         activeCodes.push(rCode);
         if (!state.isPrivate) {
           activeLobby.push({
@@ -94,6 +103,7 @@ function createRoom(playerName, isPrivate, hostColor, settings) {
     
     const initialGameState = {
       version: 1,
+      createdAt: Date.now(),
       isPrivate: !!isPrivate,
       settings: settings || { splitMoves: false, bounties: false, blitz: false, alliance: false, threeSixes: true, autoMove: true, blockades: true },
       claimedColors: [hostColor],
@@ -137,6 +147,10 @@ function joinRoom(roomCode, playerName, chosenColor) {
     if (!stateStr) return { success: false, error: 'Room not found or expired.' };
     
     const state = JSON.parse(stateStr);
+    if (isRoomExpired(state)) {
+      cache.remove('R_' + roomCode);
+      return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
+    }
     
     let isSpectator = false;
     let newPlayerId = -1;
@@ -187,6 +201,10 @@ function addBotToRoom(roomCode, botColor) {
     if (!stateStr) return { success: false, error: 'Room not found.' };
     
     const state = JSON.parse(stateStr);
+    if (isRoomExpired(state)) {
+      cache.remove('R_' + roomCode);
+      return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
+    }
     
     if (state.state !== 'WAITING') return { success: false, error: 'Game already started.' };
     if (state.players.length >= 4) return { success: false, error: 'Room is full.' };
@@ -224,6 +242,11 @@ function startGame(roomCode) {
     if (!stateStr) return null;
     
     const state = JSON.parse(stateStr);
+    if (isRoomExpired(state)) {
+      cache.remove('R_' + roomCode);
+      return null;
+    }
+    
     if (state.state === 'WAITING' && state.players.length >= 2) {
       state.state = 'PLAYING';
       state.version++;
@@ -243,6 +266,10 @@ function getRoomState(roomCode, clientVersion) {
   if (!stateStr) return { success: false, error: 'Room not found.' };
   
   const state = JSON.parse(stateStr);
+  if (isRoomExpired(state)) {
+    cache.remove('R_' + roomCode);
+    return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
+  }
   if (state.version > clientVersion) {
     return { success: true, updated: true, state: state };
   } else {
@@ -261,6 +288,10 @@ function updateRoomState(roomCode, newStateDelta, expectedVersion) {
     if (!stateStr) return { success: false, error: 'Room not found' };
     
     const state = JSON.parse(stateStr);
+    if (isRoomExpired(state)) {
+      cache.remove('R_' + roomCode);
+      return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
+    }
     
     if (state.version !== expectedVersion) {
       return { success: false, error: 'Version mismatch', state: state };
@@ -302,6 +333,10 @@ function performRoll(roomCode, expectedVersion) {
     if (!stateStr) return { success: false, error: 'Room not found' };
     
     const state = JSON.parse(stateStr);
+    if (isRoomExpired(state)) {
+      cache.remove('R_' + roomCode);
+      return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
+    }
     
     if (state.version !== expectedVersion) {
       return { success: false, error: 'Version mismatch', state: state };
@@ -361,6 +396,10 @@ function sendReaction(roomCode, playerId, emoji) {
     const stateStr = cache.get('R_' + roomCode);
     if (!stateStr) return { success: false };
     const state = JSON.parse(stateStr);
+    if (isRoomExpired(state)) {
+      cache.remove('R_' + roomCode);
+      return { success: false };
+    }
     
     if (!state.reactions) state.reactions = [];
     state.reactions.push({
@@ -373,6 +412,50 @@ function sendReaction(roomCode, playerId, emoji) {
     state.version++;
     
     cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function leaveRoom(roomCode, playerId) {
+  if (!roomCode) return { success: false };
+  const cache = CacheService.getScriptCache();
+  const lock = LockService.getScriptLock();
+  
+  if (!lock.tryLock(LOCK_TIMEOUT)) return { success: false, error: 'Lock error.' };
+  
+  try {
+    const stateStr = cache.get('R_' + roomCode);
+    if (!stateStr || isRoomExpired(JSON.parse(stateStr))) {
+      // Room might already be deleted or expired
+      cache.remove('R_' + roomCode);
+      let rooms = getActiveRooms();
+      if (rooms.includes(roomCode)) {
+        rooms = rooms.filter(r => r !== roomCode);
+        saveActiveRooms(rooms);
+      }
+      return { success: true };
+    }
+    
+    const state = JSON.parse(stateStr);
+    
+    // If host leaves or no humans left, destroy room
+    if (playerId === 0 || state.players.filter(p => !p.isBot && p.id !== playerId).length === 0) {
+      cache.remove('R_' + roomCode);
+      let rooms = getActiveRooms();
+      rooms = rooms.filter(r => r !== roomCode);
+      saveActiveRooms(rooms);
+    } else {
+      // Convert to bot
+      let p = state.players.find(p => p.id === playerId);
+      if (p) {
+        p.isBot = true;
+        p.name = p.name + ' (Bot)';
+      }
+      state.version++;
+      cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    }
+    
     return { success: true };
   } finally {
     lock.releaseLock();

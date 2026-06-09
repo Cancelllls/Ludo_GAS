@@ -1,10 +1,11 @@
 <script>
+// @ts-nocheck
 const LudoEngine = (function() {
-  const COLORS = ['red', 'blue', 'green', 'yellow'];
+  const COLORS = ['red', 'green', 'yellow', 'blue'];
   const STAR_ZONES = [0, 8, 13, 21, 26, 34, 39, 47]; 
   
-  const PATH_OFFSETS = { 'red': 0, 'blue': 13, 'green': 26, 'yellow': 39 };
-  const HOME_PATH_START = { 'red': 52, 'blue': 57, 'green': 62, 'yellow': 67 };
+  const PATH_OFFSETS = { 'red': 0, 'green': 13, 'yellow': 26, 'blue': 39 };
+  const HOME_PATH_START = { 'red': 52, 'green': 57, 'yellow': 62, 'blue': 67 };
 
   class GameState {
     constructor(players, settings = {}) {
@@ -84,7 +85,7 @@ const LudoEngine = (function() {
           }
           if (homeCount === 4) {
              let myTeam = this.getTeam(color);
-             for (let c of ['red', 'blue', 'green', 'yellow']) {
+             for (let c of ['red', 'green', 'yellow', 'blue']) {
                  if (c !== color && this.getTeam(c) === myTeam) {
                      checkColors.push(c);
                  }

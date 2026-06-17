@@ -57,18 +57,35 @@ const LudoEngine = (function() {
     hasOpponentBlockade(movingColor, pos) {
       if (this.settings && this.settings.blockades === false) return false;
       if (pos < 0 || pos > 51) return false;
-      let counts = {};
-      for (let tid in this.tokens) {
-        let t = this.tokens[tid];
-        let isOpponent = this.settings.alliance ? (this.getTeam(t.color) !== this.getTeam(movingColor)) : (t.color !== movingColor);
-        if (t.pos === pos && isOpponent) {
-          counts[t.color] = (counts[t.color] || 0) + 1;
+
+      if (this.settings && this.settings.alliance) {
+        let teamCounts = {1: 0, 2: 0};
+        for (let tid in this.tokens) {
+          let t = this.tokens[tid];
+          if (t.pos === pos) {
+             let team = this.getTeam(t.color);
+             if (team === 1 || team === 2) {
+                 teamCounts[team]++;
+             }
+          }
         }
+        let movingTeam = this.getTeam(movingColor);
+        if (movingTeam === 1 && teamCounts[2] >= 2) return true;
+        if (movingTeam === 2 && teamCounts[1] >= 2) return true;
+        return false;
+      } else {
+        let counts = {};
+        for (let tid in this.tokens) {
+          let t = this.tokens[tid];
+          if (t.pos === pos && t.color !== movingColor) {
+            counts[t.color] = (counts[t.color] || 0) + 1;
+          }
+        }
+        for (let c in counts) {
+          if (counts[c] >= 2) return true;
+        }
+        return false;
       }
-      for (let c in counts) {
-        if (counts[c] >= 2) return true;
-      }
-      return false;
     }
     
     getValidMoves(color, roll) {
@@ -212,7 +229,7 @@ const LudoEngine = (function() {
          this.remainingRoll = 0;
       }
       
-      let bonusTurn = (steps === 6 || captured || finished);
+      let bonusTurn = (this.diceRoll === 6 || captured || finished);
       
       if (this.settings.splitMoves && this.remainingRoll > 0) {
          if (bonusTurn) this.earnedBonus = true; 
@@ -226,7 +243,7 @@ const LudoEngine = (function() {
          this.earnedBonus = false;
       }
       
-      if (steps !== 6) {
+      if (this.diceRoll !== 6) {
         this.sixesRolled = 0;
       }
       

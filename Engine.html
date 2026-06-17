@@ -25,6 +25,10 @@ const LudoEngine = (function() {
       this.remainingRoll = 0;
       this.earnedBonus = false;
       
+      // Cache to prevent redundant O(n^2) path calculations during render loop
+      this._validMovesCache = {};
+      this._validMovesCacheKey = null;
+
       this.tokens = {};
       this.players.forEach(p => {
         for(let i=0; i<4; i++) {
@@ -90,6 +94,12 @@ const LudoEngine = (function() {
     
     getValidMoves(color, roll) {
       if (!roll) return [];
+
+      const cacheKey = `${roll}_${this.remainingRoll}_${this.turnCount}_${this.rollId}`;
+      if (this._validMovesCacheKey === cacheKey && this._validMovesCache[color]) {
+          return this._validMovesCache[color];
+      }
+
       let maxSteps = (this.settings && this.settings.splitMoves) ? this.remainingRoll : roll;
       if (maxSteps <= 0) return [];
       
@@ -135,6 +145,13 @@ const LudoEngine = (function() {
             }
           }
       }
+
+      if (this._validMovesCacheKey !== cacheKey) {
+          this._validMovesCacheKey = cacheKey;
+          this._validMovesCache = {};
+      }
+      this._validMovesCache[color] = valid;
+
       return valid;
     }
     
@@ -183,6 +200,9 @@ const LudoEngine = (function() {
     }
     
     moveToken(tokenId, steps) {
+      this._validMovesCacheKey = null; // Invalidate cache on board mutation
+      this._validMovesCache = {};
+
       let token = this.tokens[tokenId];
       let color = token.color;
       let nextPos = this.calculateNextPosition(token.pos, color, steps);
@@ -313,6 +333,10 @@ const LudoEngine = (function() {
     
     deserialize(data) {
       if (!data) return;
+
+      this._validMovesCacheKey = null; // Invalidate cache on network sync
+      this._validMovesCache = {};
+
       this.turnIndex = data.turnIndex;
       this.diceRoll = data.diceRoll;
       this.rollId = data.rollId;

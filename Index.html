@@ -160,10 +160,10 @@
       <div class="color-picker-section">
         <label class="select-label">Select Your Color:</label>
         <div id="color-selector" class="color-selector">
-          <button class="color-btn selected" data-color="red" style="background:var(--red);" onclick="multiplayerManager.selectColor('red')"></button>
-          <button class="color-btn" data-color="green" style="background:var(--green);" onclick="multiplayerManager.selectColor('green')"></button>
-          <button class="color-btn" data-color="yellow" style="background:var(--yellow);" onclick="multiplayerManager.selectColor('yellow')"></button>
-          <button class="color-btn" data-color="blue" style="background:var(--blue);" onclick="multiplayerManager.selectColor('blue')"></button>
+          <button class="color-btn selected" data-color="red" aria-label="Select Red Color" style="background:var(--red);" onclick="multiplayerManager.selectColor('red')"></button>
+          <button class="color-btn" data-color="green" aria-label="Select Green Color" style="background:var(--green);" onclick="multiplayerManager.selectColor('green')"></button>
+          <button class="color-btn" data-color="yellow" aria-label="Select Yellow Color" style="background:var(--yellow);" onclick="multiplayerManager.selectColor('yellow')"></button>
+          <button class="color-btn" data-color="blue" aria-label="Select Blue Color" style="background:var(--blue);" onclick="multiplayerManager.selectColor('blue')"></button>
         </div>
       </div>
 
@@ -394,12 +394,12 @@
 
       <!-- ── Floating Emoji Panel ───────────────────────── -->
       <div id="emoji-panel" class="emoji-panel hidden">
-        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😂')">😂</button>
-        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('😡')">😡</button>
-        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🎲')">🎲</button>
-        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('🏃‍♂️')">🏃‍♂️</button>
-        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('👏')">👏</button>
-        <button class="emoji-btn" onclick="multiplayerManager.sendReaction('💀')">💀</button>
+        <button class="emoji-btn" aria-label="Send laugh reaction" onclick="multiplayerManager.sendReaction('😂')">😂</button>
+        <button class="emoji-btn" aria-label="Send angry reaction" onclick="multiplayerManager.sendReaction('😡')">😡</button>
+        <button class="emoji-btn" aria-label="Send dice reaction" onclick="multiplayerManager.sendReaction('🎲')">🎲</button>
+        <button class="emoji-btn" aria-label="Send running reaction" onclick="multiplayerManager.sendReaction('🏃‍♂️')">🏃‍♂️</button>
+        <button class="emoji-btn" aria-label="Send clap reaction" onclick="multiplayerManager.sendReaction('👏')">👏</button>
+        <button class="emoji-btn" aria-label="Send skull reaction" onclick="multiplayerManager.sendReaction('💀')">💀</button>
       </div>
 
       <!-- ── Game Controls Bar ──────────────────────────── -->

@@ -1,0 +1,3 @@
+## 2026-06-17 - Added aria-labels to interactive icon/color buttons
+**Learning:** This app heavily relies on custom interactive elements that only convey their meaning visually (such as colored buttons for picking player colors, and emoji buttons for reactions). Because they lacked text, a screen reader would just announce them as "button" or not correctly interpret the emoji characters consistently.
+**Action:** Always verify that buttons lacking descriptive text (such as icon-only or color-only buttons) explicitly declare an `aria-label` to ensure they are accessible via keyboard and screen readers.

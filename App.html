@@ -126,38 +126,41 @@ const dice3DController = {
     6: { x: 180,  y: 0   }
   },
 
+  accumulatedRotations: {
+    'red': { x: 0, y: 0 },
+    'green': { x: 0, y: 0 },
+    'yellow': { x: 0, y: 0 },
+    'blue': { x: 0, y: 0 }
+  },
+
   showFace(color, value) {
     const cube = document.querySelector(`#dice-3d-${color} .dice-cube`);
     if (!cube) return;
     const rot = this.faceRotations[value];
     cube.style.transition = 'transform 0.3s ease-out';
     cube.style.transform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
+    this.accumulatedRotations[color] = { x: rot.x, y: rot.y };
   },
 
   async roll(color, finalValue) {
     const cube = document.querySelector(`#dice-3d-${color} .dice-cube`);
     if (!cube) return;
 
-    // Reset inline transform so the CSS animation can take complete control
-    cube.style.transform = '';
-    cube.style.transition = 'none';
+    const targetRot = this.faceRotations[finalValue];
+    const currentRot = this.accumulatedRotations[color] || { x: 0, y: 0 };
 
-    // Force reflow so the animation registers cleanly
-    void cube.offsetWidth;
+    // Spin at least 3-4 full rotations (1080 to 1440 deg) and align final face
+    const nextX = Math.ceil(currentRot.x / 360) * 360 + 1080 + targetRot.x;
+    const nextY = Math.ceil(currentRot.y / 360) * 360 + 1080 + targetRot.y;
 
-    // Add rolling animation class (runs the smooth 3D keyframe spin)
-    cube.classList.add('dice-rolling');
+    this.accumulatedRotations[color] = { x: nextX, y: nextY };
 
-    // Wait for the keyframe animation duration (700ms)
-    await new Promise(r => setTimeout(r, 700));
+    // Smooth physics-like slowdown and springy bounce at landing
+    cube.style.transition = 'transform 1.0s cubic-bezier(0.2, 0.85, 0.3, 1.05)';
+    cube.style.transform = `rotateX(${nextX}deg) rotateY(${nextY}deg)`;
 
-    // Remove rolling animation class
-    cube.classList.remove('dice-rolling');
-
-    // Snap to final face with a springy transition
-    const rot = this.faceRotations[finalValue];
-    cube.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-    cube.style.transform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
+    // Wait for the transition to finish (1.0s)
+    await new Promise(r => setTimeout(r, 1000));
   },
 
   resetAll() {
@@ -166,6 +169,7 @@ const dice3DController = {
       if (cube) {
         cube.style.transition = 'transform 0.3s ease';
         cube.style.transform = 'rotateX(0deg) rotateY(0deg)';
+        this.accumulatedRotations[color] = { x: 0, y: 0 };
       }
     });
   },

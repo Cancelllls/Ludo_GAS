@@ -21,6 +21,11 @@ const LudoEngine = (function() {
       this.reactions = [];
       this.bounties = [];
       this.guaranteedSix = {};
+      this.consecutiveNoSix = {};
+      this.players.forEach(p => {
+        this.guaranteedSix[p.color] = false;
+        this.consecutiveNoSix[p.color] = 0;
+      });
       this.turnCount = 0;
       this.remainingRoll = 0;
       this.earnedBonus = false;
@@ -332,6 +337,7 @@ const LudoEngine = (function() {
         settings: this.settings,
         bounties: this.bounties,
         guaranteedSix: this.guaranteedSix,
+        consecutiveNoSix: this.consecutiveNoSix,
         turnCount: this.turnCount,
         remainingRoll: this.remainingRoll,
         earnedBonus: this.earnedBonus,
@@ -364,6 +370,7 @@ const LudoEngine = (function() {
       this.settings = data.settings || {};
       this.bounties = data.bounties || [];
       this.guaranteedSix = data.guaranteedSix || {};
+      this.consecutiveNoSix = data.consecutiveNoSix || {};
       this.turnCount = data.turnCount || 0;
       this.remainingRoll = data.remainingRoll || 0;
       this.earnedBonus = !!data.earnedBonus;

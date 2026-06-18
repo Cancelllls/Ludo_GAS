@@ -1530,6 +1530,26 @@ const gameManager = {
       roll = Math.floor(Math.random() * 6) + 1;
     }
 
+    // Bad Luck Protection: If player has no active tokens on the board, count consecutive rolls.
+    // If they roll 3 times without a 6, guarantee a 6 on their next turn.
+    const hasActiveTokens = Object.values(this.state.tokens).some(t => t.color === currentColor && t.pos !== -1 && t.pos !== 100);
+    if (!hasActiveTokens) {
+      if (roll === 6) {
+        if (this.state.consecutiveNoSix) this.state.consecutiveNoSix[currentColor] = 0;
+      } else {
+        if (this.state.consecutiveNoSix) {
+          this.state.consecutiveNoSix[currentColor] = (this.state.consecutiveNoSix[currentColor] || 0) + 1;
+          if (this.state.consecutiveNoSix[currentColor] >= 3) {
+            this.state.guaranteedSix[currentColor] = true;
+            this.state.consecutiveNoSix[currentColor] = 0;
+            this.state.lastAction = `Bad Luck Protection: Next Roll is 6 for ${currentColor.toUpperCase()}!`;
+          }
+        }
+      }
+    } else {
+      if (this.state.consecutiveNoSix) this.state.consecutiveNoSix[currentColor] = 0;
+    }
+
     this.state.diceRoll = roll;
     this.state.rollId = Date.now();
     this.state.hasRolled = true;

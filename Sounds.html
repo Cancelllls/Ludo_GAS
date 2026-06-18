@@ -9,6 +9,9 @@ const Sounds = (function() {
   return {
     play(type) {
       try {
+        const isMuted = localStorage.getItem('ludoKingMuted') === 'true';
+        if (isMuted) return;
+
         if (type === 'roll') {
           rollAudio.currentTime = 0;
           rollAudio.play().catch(e => {});

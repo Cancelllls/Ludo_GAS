@@ -24,6 +24,7 @@ const LudoEngine = (function() {
       this.turnCount = 0;
       this.remainingRoll = 0;
       this.earnedBonus = false;
+      this.turnStartTime = Date.now();
       
       // Cache to prevent redundant O(n^2) path calculations during render loop
       this._validMovesCache = {};
@@ -287,6 +288,7 @@ const LudoEngine = (function() {
       this.diceRoll = null;
       this.rollId = null;
       this.turnCount++;
+      this.turnStartTime = Date.now();
     }
     
     checkWinCondition() {
@@ -333,7 +335,8 @@ const LudoEngine = (function() {
         turnCount: this.turnCount,
         remainingRoll: this.remainingRoll,
         earnedBonus: this.earnedBonus,
-        lastAction: this.lastAction
+        lastAction: this.lastAction,
+        turnStartTime: this.turnStartTime
       };
     }
     
@@ -365,6 +368,7 @@ const LudoEngine = (function() {
       this.remainingRoll = data.remainingRoll || 0;
       this.earnedBonus = !!data.earnedBonus;
       this.lastAction = data.lastAction || '';
+      this.turnStartTime = data.turnStartTime || Date.now();
     }
   }
 

@@ -11,7 +11,7 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 const CACHE_TIMEOUT = 21600; 
-const LOCK_TIMEOUT = 5000;
+const LOCK_TIMEOUT = 1500;
 const ROOM_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 function isRoomExpired(state) {
@@ -265,15 +265,24 @@ function getRoomState(roomCode, clientVersion) {
   
   if (!stateStr) return { success: false, error: 'Room not found.' };
   
-  const state = JSON.parse(stateStr);
-  if (isRoomExpired(state)) {
+  // Optimization: Fast regex check to avoid parsing full JSON on every poll request
+  let version = 0;
+  let createdAt = 0;
+  const vMatch = stateStr.match(/"version"\s*:\s*(\d+)/);
+  const cMatch = stateStr.match(/"createdAt"\s*:\s*(\d+)/);
+  if (vMatch) version = parseInt(vMatch[1], 10);
+  if (cMatch) createdAt = parseFloat(cMatch[1]);
+  
+  if (createdAt && (Date.now() - createdAt) > ROOM_EXPIRY_MS) {
     cache.remove('R_' + roomCode);
     return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
   }
-  if (state.version > clientVersion) {
+  
+  if (version > clientVersion) {
+    const state = JSON.parse(stateStr);
     return { success: true, updated: true, state: state };
   } else {
-    return { success: true, updated: false, version: state.version };
+    return { success: true, updated: false, version: version };
   }
 }
 

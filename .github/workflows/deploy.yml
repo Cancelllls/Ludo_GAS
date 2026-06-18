@@ -1,0 +1,36 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Clasp
+        run: npm install -g @google/clasp
+
+      - name: Create Clasp Credentials
+        run: |
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+          echo '${{ secrets.CLASP_JSON }}' > .clasp.json
+
+      - name: Push to Apps Script
+        run: clasp push
+
+      - name: Redeploy Web App
+        run: |
+          VERSION_OUTPUT=$(clasp version "Automated CI/CD Deploy")
+          VERSION_NUM=$(echo "$VERSION_OUTPUT" | grep -oE "Created version [0-9]+" | grep -oE "[0-9]+")
+          echo "Deploying version $VERSION_NUM"
+          clasp redeploy AKfycbx1BAb9QZcN6MZH-xzVuA_r1SU0ZORfE_iNcs4qkF9GHjF64o4QMRpo9TQgHTye8tDmxw --versionNumber $VERSION_NUM --description "Automated CI/CD Deploy"

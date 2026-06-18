@@ -150,6 +150,20 @@
   .dark-mode-toggle:hover { transform: scale(1.1); box-shadow: var(--shadow-lg); }
   .dark-mode-toggle:active { transform: scale(0.95); }
 
+  .sound-toggle {
+    position: fixed; top: 15px; right: 75px; z-index: 200;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--glass-bg); backdrop-filter: blur(12px);
+    border: 1.5px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer; padding: 0;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.3s, box-shadow 0.3s, background 0.3s;
+    color: var(--text-primary);
+  }
+  .sound-toggle:hover { transform: scale(1.1); box-shadow: var(--shadow-lg); }
+  .sound-toggle:active { transform: scale(0.95); }
+
   /* ============================================================
      PARTICLE CANVAS
      ============================================================ */

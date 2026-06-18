@@ -34,6 +34,37 @@ const darkModeManager = {
   }
 };
 
+// ─── Sound Manager ──────────────────────────────────────────
+const soundManager = {
+  init() {
+    const saved = localStorage.getItem('ludoKingMuted');
+    if (saved === 'true') {
+      this.setMuted(true);
+    } else {
+      this.setMuted(false);
+    }
+    const toggle = document.getElementById('sound-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', () => this.toggle());
+    }
+  },
+  toggle() {
+    const isCurrentlyMuted = localStorage.getItem('ludoKingMuted') === 'true';
+    this.setMuted(!isCurrentlyMuted);
+  },
+  setMuted(mute) {
+    localStorage.setItem('ludoKingMuted', mute ? 'true' : 'false');
+    const icon = document.getElementById('sound-icon');
+    if (icon) {
+      icon.innerText = mute ? '🔇' : '🔊';
+    }
+    const toggle = document.getElementById('sound-toggle');
+    if (toggle) {
+      toggle.title = mute ? 'Unmute Sound' : 'Mute Sound';
+    }
+  }
+};
+
 // ─── 3D Dice Controller ──────────────────────────────────────
 const dice3DController = {
   // Rotation values for each face result (1-6)
@@ -1191,6 +1222,7 @@ const gameManager = {
     renderer.visualTokens = null;
     dice3DController.resetAll();
     uiManager.showGame();
+    this.startTurnTimer();
     this.loop();
   },
 
@@ -1201,52 +1233,115 @@ const gameManager = {
     renderer.visualTokens = null;
     dice3DController.resetAll();
     uiManager.showGame();
+    this.startTurnTimer();
     this.loop();
   },
 
   startBlitzTimer(actionKey) {
     if (this.currentBlitzAction === actionKey) return;
     this.currentBlitzAction = actionKey;
-
-    clearInterval(this.blitzTimer);
-    const blitzDisplay = document.getElementById('blitz-display');
-    if (blitzDisplay) blitzDisplay.classList.remove('hidden');
-    this.blitzTimeLeft = 15;
-    const blitzTime = document.getElementById('blitz-time');
-    if (blitzTime) blitzTime.innerText = this.blitzTimeLeft;
-
-    this.blitzTimer = setInterval(() => {
-      this.blitzTimeLeft--;
-      if (blitzTime) blitzTime.innerText = this.blitzTimeLeft;
-      if (this.blitzTimeLeft <= 0) {
-        this.stopBlitzTimer();
-        uiManager.cancelSplit();
-        LudoBot.playTurn(this.state,
-          () => this.rollDice(),
-          (tid, steps) => {
-            let st = steps || (this.state.settings.splitMoves ? this.state.remainingRoll : this.state.diceRoll);
-            this.moveToken(tid, st);
-          }
-        );
-      }
-    }, 1000);
   },
 
   stopBlitzTimer() {
-    clearInterval(this.blitzTimer);
-    const blitzDisplay = document.getElementById('blitz-display');
-    if (blitzDisplay) blitzDisplay.classList.add('hidden');
     this.currentBlitzAction = null;
   },
 
-  async rollDice() {
+  turnTimerInterval: null,
+  startTurnTimer() {
+    if (this.turnTimerInterval) return;
+    this.turnTimerInterval = setInterval(() => {
+      if (!this.state || this.state.winner) {
+        this.stopTurnTimer();
+        return;
+      }
+      
+      const isOnline = AppState.mode === 'online_playing';
+      const isBlitz = this.state.settings && this.state.settings.blitz;
+      const hasTimer = isBlitz || isOnline;
+      
+      const blitzDisplay = document.getElementById('blitz-display');
+      if (!hasTimer) {
+        if (blitzDisplay) blitzDisplay.classList.add('hidden');
+        return;
+      }
+      
+      if (blitzDisplay) blitzDisplay.classList.remove('hidden');
+      
+      const timeout = isBlitz ? 15000 : 45000;
+      const elapsed = Date.now() - (this.state.turnStartTime || Date.now());
+      const timeLeft = Math.max(0, Math.ceil((timeout - elapsed) / 1000));
+      
+      const blitzTime = document.getElementById('blitz-time');
+      if (blitzTime) blitzTime.innerText = timeLeft;
+      
+      // Host checks for AFK and executes the turn if time runs out
+      if (AppState.playerId === 0 && timeLeft <= 0 && !this.state.currentPlayer.isBot) {
+        console.log("AFK detected for player: ", this.state.currentPlayer.name);
+        this.takeAFKTurn();
+      }
+      
+      // If it is my turn locally/online and I go AFK, auto play
+      const isMyTurn = AppState.mode === 'local' 
+        ? !this.state.currentPlayer.isBot 
+        : (!AppState.isSpectator && this.state.currentPlayer.id === AppState.playerId);
+      if (isMyTurn && timeLeft <= 0) {
+        console.log("Local AFK timeout, auto-playing...");
+        this.autoPlayCurrentTurn();
+      }
+    }, 500);
+  },
+
+  stopTurnTimer() {
+    clearInterval(this.turnTimerInterval);
+    this.turnTimerInterval = null;
+    const blitzDisplay = document.getElementById('blitz-display');
+    if (blitzDisplay) blitzDisplay.classList.add('hidden');
+  },
+
+  autoPlayCurrentTurn() {
+    if (!this.state || this.state.winner) return;
+    uiManager.cancelSplit();
+    LudoBot.playTurn(this.state,
+      () => this.rollDice(),
+      (tid, steps) => {
+        let st = steps || (this.state.settings.splitMoves ? this.state.remainingRoll : this.state.diceRoll);
+        this.moveToken(tid, st);
+      }
+    );
+  },
+
+  async takeAFKTurn() {
+    if (!this.state || this.state.winner) return;
+    if (!this.state.hasRolled) {
+      await this.rollDice(true);
+    } else {
+      const validMoves = this.state.getValidMoves(this.state.currentColor, this.state.diceRoll);
+      if (validMoves.length > 0) {
+        LudoBot.executeMoves(this.state, (tid, steps) => {
+          let st = steps || (this.state.settings.splitMoves ? this.state.remainingRoll : this.state.diceRoll);
+          this.moveToken(tid, st, true);
+        });
+      } else {
+        this.state.nextTurn();
+        if (AppState.mode === 'online_playing') {
+          await multiplayerManager.pushState();
+        }
+        renderer.draw(this.state);
+        uiManager.updateGameUI(this.state);
+      }
+    }
+  },
+
+  async rollDice(force = false) {
     if (!this.state || this.state.hasRolled || this.state.winner) return null;
 
     const currentColor = this.state.currentColor;
 
     if (AppState.mode === 'online_playing') {
       if (AppState.isSpectator) return null;
-      if (this.state.currentPlayer.id !== AppState.playerId && !(AppState.playerId === 0 && this.state.currentPlayer.isBot)) return null;
+      const isAllowed = (this.state.currentPlayer.id === AppState.playerId) || 
+                        (AppState.playerId === 0 && (this.state.currentPlayer.isBot || force));
+      if (!isAllowed) return null;
     }
 
     Sounds.play('roll');
@@ -1278,6 +1373,7 @@ const gameManager = {
     this.state.rollId = Date.now();
     this.state.hasRolled = true;
     this.state.remainingRoll = roll;
+    this.state.turnStartTime = Date.now(); // Reset timer for the move phase
 
     if (roll === 6) {
       if (!this.state.settings || this.state.settings.threeSixes !== false) {
@@ -1336,7 +1432,7 @@ const gameManager = {
     this.postRollCheck(isNetworkSync);
   },
 
-  async moveToken(tokenId, steps) {
+  async moveToken(tokenId, steps, force = false) {
     if (!this.state || !this.state.hasRolled || this.state.winner) return;
     if (!tokenId || !this.state.tokens[tokenId]) return;
 
@@ -1344,7 +1440,9 @@ const gameManager = {
     const oldVersion = multiplayerManager.version;
 
     let st = steps || this.state.diceRoll;
-    const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && (this.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && this.state.currentPlayer.isBot)));
+    const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && 
+                      (this.state.currentPlayer.id === AppState.playerId || 
+                      (AppState.playerId === 0 && (this.state.currentPlayer.isBot || force))));
     
     this.state.moveToken(tokenId, st);
 
@@ -1371,7 +1469,7 @@ const gameManager = {
 
     if (this.state.winner) {
       uiManager.showModal("Game Over", `${this.state.winner.toUpperCase()} WINS!`);
-      this.stopBlitzTimer();
+      this.stopTurnTimer();
     } else {
       setTimeout(() => this.postRollCheck(), 500);
     }
@@ -1449,7 +1547,7 @@ const gameManager = {
 
   quitGame() {
     this.state = null;
-    this.stopBlitzTimer();
+    this.stopTurnTimer();
     renderer.visualTokens = null;
     dice3DController.resetAll();
     if (AppState.mode === 'online_playing') {
@@ -1640,9 +1738,19 @@ const multiplayerManager = {
   },
 
   pollingActive: false,
+  visibilityListener: null,
   startPolling() {
     this.pollingActive = true;
     this.scheduleNextPoll(100);
+
+    if (!this.visibilityListener) {
+      this.visibilityListener = () => {
+        if (!document.hidden && this.pollingActive) {
+          this.scheduleNextPoll(50);
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityListener);
+    }
   },
 
   stopPolling() {
@@ -1650,6 +1758,10 @@ const multiplayerManager = {
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
+    }
+    if (this.visibilityListener) {
+      document.removeEventListener('visibilitychange', this.visibilityListener);
+      this.visibilityListener = null;
     }
   },
 
@@ -1659,10 +1771,14 @@ const multiplayerManager = {
 
     let targetDelay = delay;
     if (targetDelay === null) {
-      targetDelay = 2000;
-      if (gameManager.state && AppState.mode === 'online_playing' && gameManager.state.state === 'PLAYING') {
-        const isMyTurn = (!AppState.isSpectator && (gameManager.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && gameManager.state.currentPlayer.isBot)));
-        if (isMyTurn) targetDelay = 5000;
+      if (document.hidden) {
+        targetDelay = 12000;
+      } else {
+        targetDelay = 2000;
+        if (gameManager.state && AppState.mode === 'online_playing' && gameManager.state.state === 'PLAYING') {
+          const isMyTurn = (!AppState.isSpectator && (gameManager.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && gameManager.state.currentPlayer.isBot)));
+          if (isMyTurn) targetDelay = 5000;
+        }
       }
     }
 
@@ -1732,11 +1848,20 @@ const multiplayerManager = {
             </div>
           `);
           this.stopPolling();
-          gameManager.stopBlitzTimer();
+          gameManager.stopTurnTimer();
         }
 
-        if (AppState.playerId === 0 && gameManager.state.currentPlayer.isBot && !gameManager.state.hasRolled && !gameManager.state.winner) {
-          gameManager.loop();
+        if (AppState.playerId === 0 && !gameManager.state.winner) {
+          if (gameManager.state.currentPlayer.isBot && !gameManager.state.hasRolled) {
+            gameManager.loop();
+          } else if (!gameManager.state.currentPlayer.isBot) {
+            const timeout = gameManager.state.settings.blitz ? 15000 : 45000;
+            const elapsed = Date.now() - (gameManager.state.turnStartTime || Date.now());
+            if (elapsed > timeout) {
+              console.log("AFK Player detected! Host taking turn for: ", gameManager.state.currentPlayer.name);
+              gameManager.takeAFKTurn();
+            }
+          }
         }
     }
   },
@@ -1867,6 +1992,7 @@ const multiplayerManager = {
 // ─── Initialize ──────────────────────────────────────────────
 window.onload = () => {
   darkModeManager.init();
+  soundManager.init();
   renderer.init();
 };
 </script>

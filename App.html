@@ -1300,7 +1300,7 @@ const gameManager = {
     if (dv) dv.innerText = roll;
 
     if (AppState.mode === 'online_playing') {
-      multiplayerManager.pushState();
+      await multiplayerManager.pushState();
     }
 
     this.postRollCheck();
@@ -1389,11 +1389,11 @@ const gameManager = {
 
     const validMoves = this.state.getValidMoves(this.state.currentColor, this.state.diceRoll);
     if (validMoves.length === 0) {
-      setTimeout(() => {
+      setTimeout(async () => {
         const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && (this.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && this.state.currentPlayer.isBot)));
         this.state.nextTurn();
         if (isMyTurn) {
-          multiplayerManager.pushState();
+          await multiplayerManager.pushState();
         }
         renderer.draw(this.state);
         uiManager.updateGameUI(this.state);
@@ -1788,7 +1788,7 @@ const multiplayerManager = {
   },
 
   async pushState() {
-    if (AppState.mode !== 'online_playing' || !gameManager.state || AppState.isSpectator) return;
+    if (AppState.mode !== 'online_playing' || !gameManager.state || AppState.isSpectator) return false;
     const delta = gameManager.state.serialize();
     const currentVersion = this.version;
 
@@ -1798,6 +1798,7 @@ const multiplayerManager = {
     if (!res.success) {
        this.poll();
     }
+    return res.success;
   },
 
   leaveRoom() {

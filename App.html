@@ -1512,23 +1512,7 @@ const gameManager = {
       if (!isAllowed) return null;
     }
 
-    Sounds.play('roll');
-
-    // Local/Optimistic game dice roll with 3D animation
-    const rollPromise = dice3DController.roll(currentColor, 1);
-
-    // Legacy dice animation
-    const dc = document.getElementById('dice-container');
-    if (dc) dc.style.animation = 'flipDice 0.6s linear';
-    let f = setInterval(() => {
-      const dv = document.getElementById('dice-value');
-      if (dv) dv.innerText = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.floor(Math.random() * 6)];
-    }, 50);
-
-    await rollPromise;
-    clearInterval(f);
-    if (dc) dc.style.animation = '';
-
+    // Determine roll value immediately before starting the animation
     let roll;
     if (this.state.guaranteedSix && this.state.guaranteedSix[this.state.currentColor]) {
       roll = 6;
@@ -1542,6 +1526,23 @@ const gameManager = {
     this.state.hasRolled = true;
     this.state.remainingRoll = roll;
     this.state.turnStartTime = Date.now(); // Reset timer for the move phase
+
+    Sounds.play('roll');
+
+    // Local/Optimistic game dice roll with 3D animation directly to the rolled number!
+    const rollPromise = dice3DController.roll(currentColor, roll);
+
+    // Legacy dice animation
+    const dc = document.getElementById('dice-container');
+    if (dc) dc.style.animation = 'flipDice 0.6s linear';
+    let f = setInterval(() => {
+      const dv = document.getElementById('dice-value');
+      if (dv) dv.innerText = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.floor(Math.random() * 6)];
+    }, 50);
+
+    await rollPromise;
+    clearInterval(f);
+    if (dc) dc.style.animation = '';
 
     if (roll === 6) {
       Sounds.play('six');
@@ -1577,10 +1578,10 @@ const gameManager = {
 
     Sounds.play('roll');
 
-    // 3D dice animation
-    await dice3DController.roll(currentColor, rollResult);
+    // Start 3D roll animation directly to the rolled value
+    const rollPromise = dice3DController.roll(currentColor, rollResult);
 
-    // Legacy dice
+    // Legacy dice (flickers in parallel)
     const dc = document.getElementById('dice-container');
     if (dc) dc.style.animation = 'flipDice 0.6s linear';
     let f = setInterval(() => {
@@ -1588,9 +1589,10 @@ const gameManager = {
       if (dv) dv.innerText = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.floor(Math.random() * 6)];
     }, 50);
 
-    await new Promise(r => setTimeout(r, 600));
+    await rollPromise;
     clearInterval(f);
     if (dc) dc.style.animation = '';
+    
     const dv = document.getElementById('dice-value');
     if (dv) dv.innerText = rollResult;
 

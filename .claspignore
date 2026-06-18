@@ -1,0 +1,12 @@
+# Ignore all files by default
+**/*
+
+# Allow specific Apps Script files
+!appsscript.json
+!Code.gs
+!Index.html
+!Style.html
+!App.html
+!Engine.html
+!Bot.html
+!Sounds.html

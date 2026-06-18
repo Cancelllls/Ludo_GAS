@@ -711,6 +711,7 @@ const renderer = {
   drawStaticBoardTo(ctx) {
     const cs = this.cs;
     const c = this.getBoardColors();
+    const theme = typeof themeManager !== 'undefined' ? themeManager.currentTheme : 'classic';
     ctx.clearRect(0, 0, this.size, this.size);
 
     // ─── Base Quadrants (with gradient fills & 3D borders) ────────

@@ -4,29 +4,43 @@ const Sounds = (function() {
   let masterGain = null;
 
   function initContext() {
-    if (!audioCtx) {
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(0.35, audioCtx.currentTime); // standard volume
-        masterGain.connect(audioCtx.destination);
-      } catch (e) {
-        console.error("Web Audio API not supported:", e);
+    try {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+          masterGain.connect(audioCtx.destination);
+        }
       }
-    }
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    } catch (e) {
+      console.warn("Web Audio API not supported or blocked by policy:", e);
+      audioCtx = null;
     }
   }
 
-  // Bind init context to user gestures
-  document.addEventListener('click', initContext, { once: false, passive: true });
-  document.addEventListener('touchstart', initContext, { once: false, passive: true });
+  // Bind init context to user gestures in the most compatible way
+  try {
+    document.addEventListener('click', initContext);
+    document.addEventListener('touchstart', initContext);
+  } catch (e) {
+    console.warn("Event listeners not supported on document:", e);
+  }
+
+  const SafeStorage = {
+    getItem(key) {
+      try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+  };
 
   return {
     play(type) {
       try {
-        const isMuted = localStorage.getItem('ludoKingMuted') === 'true';
+        const isMuted = SafeStorage.getItem('ludoKingMuted') === 'true';
         if (isMuted) return;
 
         initContext();
@@ -35,7 +49,6 @@ const Sounds = (function() {
         const now = audioCtx.currentTime;
 
         if (type === 'roll') {
-          // Retro triangle pitch sweep up
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.connect(gain);
@@ -52,7 +65,6 @@ const Sounds = (function() {
           osc.stop(now + 0.16);
 
         } else if (type === 'move') {
-          // Classic double-beep coin sound
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.connect(gain);
@@ -70,7 +82,6 @@ const Sounds = (function() {
           osc.stop(now + 0.16);
 
         } else if (type === 'six') {
-          // Arpeggio power-up for rolling 6
           const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
           notes.forEach((freq, idx) => {
             const osc = audioCtx.createOscillator();
@@ -90,7 +101,6 @@ const Sounds = (function() {
           });
 
         } else if (type === 'capture') {
-          // Downward crash explosion
           const osc1 = audioCtx.createOscillator();
           const osc2 = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
@@ -115,7 +125,6 @@ const Sounds = (function() {
           osc2.stop(now + 0.31);
 
         } else if (type === 'home') {
-          // Sparkly chimes for reaching home
           const notes = [659.25, 783.99, 987.77, 1318.51, 1567.98]; // E5, G5, B5, E6, G6
           notes.forEach((freq, idx) => {
             const osc = audioCtx.createOscillator();
@@ -135,7 +144,6 @@ const Sounds = (function() {
           });
 
         } else if (type === 'victory') {
-          // Full retro chiptune fanfare melody
           const melody = [
             { f: 523.25, d: 0.12 }, // C5
             { f: 659.25, d: 0.12 }, // E5
@@ -165,7 +173,6 @@ const Sounds = (function() {
           });
 
         } else if (type === 'error') {
-          // Short low-frequency buzzer
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.connect(gain);
@@ -182,7 +189,6 @@ const Sounds = (function() {
           osc.stop(now + 0.19);
 
         } else if (type === 'tick') {
-          // Short woodblock tick for time warning
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.connect(gain);

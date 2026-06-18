@@ -5,10 +5,22 @@
    3D Dice · Per-Player Panels · Dark Mode · Premium Rendering
    ============================================================ */
 
+const SafeStorage = {
+  getItem(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  },
+  setItem(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
+  },
+  removeItem(key) {
+    try { localStorage.removeItem(key); return true; } catch (e) { return false; }
+  }
+};
+
 // ─── Dark Mode Manager ───────────────────────────────────────
 const darkModeManager = {
   init() {
-    const saved = localStorage.getItem('ludoKingDarkMode');
+    const saved = SafeStorage.getItem('ludoKingDarkMode');
     if (saved === 'true' || (saved === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.body.classList.add('dark-mode');
     }
@@ -21,7 +33,7 @@ const darkModeManager = {
   toggle() {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
-    localStorage.setItem('ludoKingDarkMode', isDark);
+    SafeStorage.setItem('ludoKingDarkMode', isDark);
     this.updateIcon();
     if (gameManager.state) renderer.draw(gameManager.state);
   },
@@ -37,7 +49,7 @@ const darkModeManager = {
 // ─── Sound Manager ──────────────────────────────────────────
 const soundManager = {
   init() {
-    const saved = localStorage.getItem('ludoKingMuted');
+    const saved = SafeStorage.getItem('ludoKingMuted');
     if (saved === 'true') {
       this.setMuted(true);
     } else {
@@ -49,11 +61,11 @@ const soundManager = {
     }
   },
   toggle() {
-    const isCurrentlyMuted = localStorage.getItem('ludoKingMuted') === 'true';
+    const isCurrentlyMuted = SafeStorage.getItem('ludoKingMuted') === 'true';
     this.setMuted(!isCurrentlyMuted);
   },
   setMuted(mute) {
-    localStorage.setItem('ludoKingMuted', mute ? 'true' : 'false');
+    SafeStorage.setItem('ludoKingMuted', mute ? 'true' : 'false');
     const icon = document.getElementById('sound-icon');
     if (icon) {
       icon.innerText = mute ? '🔇' : '🔊';
@@ -71,7 +83,7 @@ const themeManager = {
   currentTheme: 'classic',
 
   init() {
-    const saved = localStorage.getItem('ludoKingTheme');
+    const saved = SafeStorage.getItem('ludoKingTheme');
     if (this.themes.includes(saved)) {
       this.currentTheme = saved;
     }
@@ -85,7 +97,7 @@ const themeManager = {
     const idx = this.themes.indexOf(this.currentTheme);
     const nextIdx = (idx + 1) % this.themes.length;
     this.currentTheme = this.themes[nextIdx];
-    localStorage.setItem('ludoKingTheme', this.currentTheme);
+    SafeStorage.setItem('ludoKingTheme', this.currentTheme);
     
     const toggle = document.getElementById('theme-toggle');
     if (toggle) {
@@ -1375,11 +1387,11 @@ const gameManager = {
     this.loop();
 
     // Save active session for reconnection
-    localStorage.setItem('ludo_active_room', AppState.roomCode);
-    localStorage.setItem('ludo_player_id', AppState.playerId);
+    SafeStorage.setItem('ludo_active_room', AppState.roomCode);
+    SafeStorage.setItem('ludo_player_id', AppState.playerId);
     const hostPlayer = stateData.players.find(p => p.id === AppState.playerId);
-    localStorage.setItem('ludo_player_name', document.getElementById('player-name').value || (hostPlayer ? hostPlayer.name : ''));
-    localStorage.setItem('ludo_player_color', AppState.selectedColor || (hostPlayer ? hostPlayer.color : ''));
+    SafeStorage.setItem('ludo_player_name', document.getElementById('player-name').value || (hostPlayer ? hostPlayer.name : ''));
+    SafeStorage.setItem('ludo_player_color', AppState.selectedColor || (hostPlayer ? hostPlayer.color : ''));
   },
 
   startBlitzTimer(actionKey) {
@@ -1723,10 +1735,10 @@ const gameManager = {
     }
     
     // Clear reconnection cache on deliberate exit
-    localStorage.removeItem('ludo_active_room');
-    localStorage.removeItem('ludo_player_id');
-    localStorage.removeItem('ludo_player_name');
-    localStorage.removeItem('ludo_player_color');
+    SafeStorage.removeItem('ludo_active_room');
+    SafeStorage.removeItem('ludo_player_id');
+    SafeStorage.removeItem('ludo_player_name');
+    SafeStorage.removeItem('ludo_player_color');
     const rejoinSection = document.getElementById('rejoin-section');
     if (rejoinSection) rejoinSection.classList.add('hidden');
 
@@ -1734,9 +1746,9 @@ const gameManager = {
   },
 
   async reconnectGame() {
-    const roomCode = localStorage.getItem('ludo_active_room');
-    const playerName = localStorage.getItem('ludo_player_name');
-    const chosenColor = localStorage.getItem('ludo_player_color');
+    const roomCode = SafeStorage.getItem('ludo_active_room');
+    const playerName = SafeStorage.getItem('ludo_player_name');
+    const chosenColor = SafeStorage.getItem('ludo_player_color');
     
     if (!roomCode || !playerName || !chosenColor) return;
     
@@ -1761,7 +1773,7 @@ const gameManager = {
         multiplayerManager.startPolling();
       } else {
         uiManager.showModal("Error", res ? res.error : "Failed to reconnect.");
-        localStorage.removeItem('ludo_active_room');
+        SafeStorage.removeItem('ludo_active_room');
         const rSec = document.getElementById('rejoin-section');
         if (rSec) rSec.classList.add('hidden');
       }
@@ -2158,10 +2170,10 @@ const multiplayerManager = {
     AppState.isSpectator = false;
     
     // Clear session storage on deliberate exit
-    localStorage.removeItem('ludo_active_room');
-    localStorage.removeItem('ludo_player_id');
-    localStorage.removeItem('ludo_player_name');
-    localStorage.removeItem('ludo_player_color');
+    SafeStorage.removeItem('ludo_active_room');
+    SafeStorage.removeItem('ludo_player_id');
+    SafeStorage.removeItem('ludo_player_name');
+    SafeStorage.removeItem('ludo_player_color');
     const rejoinSection = document.getElementById('rejoin-section');
     if (rejoinSection) rejoinSection.classList.add('hidden');
 
@@ -2234,7 +2246,7 @@ window.onload = () => {
   renderer.init();
 
   // Show rejoin game button if session is active
-  const activeRoom = localStorage.getItem('ludo_active_room');
+  const activeRoom = SafeStorage.getItem('ludo_active_room');
   const rejoinSection = document.getElementById('rejoin-section');
   const rejoinRoomCode = document.getElementById('rejoin-room-code');
   if (activeRoom && rejoinSection && rejoinRoomCode) {

@@ -410,6 +410,16 @@
         <button class="emoji-btn" aria-label="Send running reaction" onclick="multiplayerManager.sendReaction('🏃‍♂️')">🏃‍♂️</button>
         <button class="emoji-btn" aria-label="Send clap reaction" onclick="multiplayerManager.sendReaction('👏')">👏</button>
         <button class="emoji-btn" aria-label="Send skull reaction" onclick="multiplayerManager.sendReaction('💀')">💀</button>
+        <button class="emoji-btn" aria-label="Toggle quick chat" onclick="uiManager.toggleQuickChat()" style="background: var(--accent-purple); color: white; border-color: var(--accent-gold);">💬</button>
+
+        <div id="quick-chat-popover" class="quick-chat-popover hidden">
+          <button class="chat-phrase-btn" onclick="uiManager.sendQuickChat('Good game! 🤝')">Good game! 🤝</button>
+          <button class="chat-phrase-btn" onclick="uiManager.sendQuickChat('OMG! 😱')">OMG! 😱</button>
+          <button class="chat-phrase-btn" onclick="uiManager.sendQuickChat('So close! 🤏')">So close! 🤏</button>
+          <button class="chat-phrase-btn" onclick="uiManager.sendQuickChat('Hurry up! ⏳')">Hurry up! ⏳</button>
+          <button class="chat-phrase-btn" onclick="uiManager.sendQuickChat('Yes! 🎉')">Yes! 🎉</button>
+          <button class="chat-phrase-btn" onclick="uiManager.sendQuickChat('Unlucky! 😢')">Unlucky! 😢</button>
+        </div>
       </div>
 
       <!-- ── Game Controls Bar ──────────────────────────── -->

@@ -419,6 +419,14 @@ const uiManager = {
       container.classList.add('hidden');
       container.innerHTML = '';
     }
+  },
+  toggleQuickChat() {
+    const popover = document.getElementById('quick-chat-popover');
+    if (popover) popover.classList.toggle('hidden');
+  },
+  sendQuickChat(phrase) {
+    this.toggleQuickChat();
+    multiplayerManager.sendReaction(phrase);
   }
 };
 
@@ -2042,6 +2050,20 @@ const multiplayerManager = {
     let el = document.createElement('div');
     el.className = 'emoji-popup';
     el.innerText = emoji;
+
+    // Premium Quick Chat bubble styling if it is a phrase
+    if (emoji.length > 3) {
+      el.style.fontSize = '14px';
+      el.style.fontWeight = 'bold';
+      el.style.background = '#8A2BE2'; // Deep purple bubble
+      el.style.color = 'white';
+      el.style.padding = '8px 14px';
+      el.style.borderRadius = '18px';
+      el.style.border = '1.5px solid #FFD700'; // Gold border
+      el.style.boxShadow = '0 6px 16px rgba(0,0,0,0.3)';
+      el.style.whiteSpace = 'nowrap';
+    }
+
     el.style.left = (px - 20) + 'px';
     el.style.top = (py - 20) + 'px';
 

@@ -1344,6 +1344,8 @@ const gameManager = {
     const oldVersion = multiplayerManager.version;
 
     let st = steps || this.state.diceRoll;
+    const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && (this.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && this.state.currentPlayer.isBot)));
+    
     this.state.moveToken(tokenId, st);
 
     Sounds.play('move');
@@ -1352,7 +1354,6 @@ const gameManager = {
     uiManager.updateGameUI(this.state);
 
     if (AppState.mode === 'online_playing') {
-      const isMyTurn = (!AppState.isSpectator && (this.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && this.state.currentPlayer.isBot)));
       if (isMyTurn) {
         multiplayerManager.version++;
         const delta = this.state.serialize();

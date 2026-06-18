@@ -728,21 +728,9 @@
     transform: rotateX(-20deg) rotateY(-20deg);
   }
 
-  /* One-shot physics elastic landing bounce when roll stops */
-  .dice-scene:not(.is-rolling) {
-    animation: diceLandSnap 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-  }
-
   /* Active player panel dice floats and wiggles in 3D to suggest interaction */
   .player-panel.panel-active .dice-scene:not(.is-rolling) {
     animation: activeDiceScenePulse 3.5s infinite ease-in-out;
-  }
-
-  @keyframes diceLandSnap {
-    0% { transform: rotateX(-20deg) rotateY(-20deg) scaleY(0.8) scaleX(1.15) scaleZ(1.15); }
-    40% { transform: rotateX(-20deg) rotateY(-20deg) scaleY(1.1) scaleX(0.92) scaleZ(0.92); }
-    70% { transform: rotateX(-20deg) rotateY(-20deg) scaleY(0.97) scaleX(1.02) scaleZ(1.02); }
-    100% { transform: rotateX(-20deg) rotateY(-20deg) scale(1); }
   }
 
   @keyframes activeDiceScenePulse {

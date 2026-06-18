@@ -1406,7 +1406,7 @@ const gameManager = {
       uiManager.showModal("Game Over", `${this.state.winner.toUpperCase()} WINS!`);
       this.stopBlitzTimer();
     } else {
-      setTimeout(() => this.loop(), 500);
+      setTimeout(() => this.postRollCheck(), 500);
     }
   },
 
@@ -1422,8 +1422,9 @@ const gameManager = {
     const validMoves = this.state.getValidMoves(this.state.currentColor, this.state.diceRoll);
     if (validMoves.length === 0) {
       setTimeout(() => {
+        const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && this.state.currentPlayer.id === AppState.playerId);
         this.state.nextTurn();
-        if (AppState.mode === 'online_playing' && !AppState.isSpectator && this.state.currentPlayer.id === AppState.playerId) {
+        if (isMyTurn) {
           multiplayerManager.pushState();
         }
         renderer.draw(this.state);

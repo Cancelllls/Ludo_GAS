@@ -337,12 +337,18 @@ const LudoEngine = (function() {
       this._validMovesCacheKey = null; // Invalidate cache on network sync
       this._validMovesCache = {};
 
+      if (data.players) {
+        this.players = data.players;
+      }
+
       this.turnIndex = data.turnIndex;
       this.diceRoll = data.diceRoll;
       this.rollId = data.rollId;
       this.hasRolled = data.hasRolled;
       this.sixesRolled = data.sixesRolled;
-      this.tokens = data.tokens;
+      if (data.tokens && Object.keys(data.tokens).length > 0) {
+        this.tokens = data.tokens;
+      }
       this.winner = data.winner;
       this.spectators = data.spectators || [];
       this.reactions = data.reactions || [];

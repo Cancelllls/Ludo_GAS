@@ -1351,6 +1351,7 @@ const gameManager = {
   blitzTimeLeft: 15,
   currentBlitzAction: null,
   lastTickTime: null,
+  isProcessingTurn: false,
 
   startLocalGame() {
     const pc = parseInt(document.getElementById('local-player-count').value);
@@ -1521,6 +1522,8 @@ const gameManager = {
       if (!isAllowed) return null;
     }
 
+    this.isProcessingTurn = true;
+
     // Determine roll value immediately before starting the animation
     let roll;
     if (this.state.guaranteedSix && this.state.guaranteedSix[this.state.currentColor]) {
@@ -1596,6 +1599,7 @@ const gameManager = {
     }
 
     this.postRollCheck();
+    this.isProcessingTurn = false;
     return roll;
   },
 
@@ -1634,6 +1638,8 @@ const gameManager = {
   async moveToken(tokenId, steps, force = false) {
     if (!this.state || !this.state.hasRolled || this.state.winner) return;
     if (!tokenId || !this.state.tokens[tokenId]) return;
+
+    this.isProcessingTurn = true;
 
     const backupStateStr = JSON.stringify(this.state.serialize());
     const oldVersion = multiplayerManager.version;
@@ -1680,6 +1686,7 @@ const gameManager = {
     } else {
       setTimeout(() => this.postRollCheck(), 500);
     }
+    this.isProcessingTurn = false;
   },
 
   postRollCheck(isNetworkSync = false) {
@@ -2081,6 +2088,8 @@ const multiplayerManager = {
       }
     } else if (AppState.mode === 'online_playing') {
       if (!gameManager.state) return;
+      // Skip state deserialization while local client is mid-roll or mid-move to prevent turn corruption
+      if (gameManager.isProcessingTurn) return;
 
       this.pollReactions(state);
 

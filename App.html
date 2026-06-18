@@ -138,25 +138,25 @@ const dice3DController = {
     const cube = document.querySelector(`#dice-3d-${color} .dice-cube`);
     if (!cube) return;
 
-    // Add rolling animation class
-    cube.classList.add('dice-rolling');
+    // Reset inline transform so the CSS animation can take complete control
+    cube.style.transform = '';
     cube.style.transition = 'none';
 
-    // Show random faces rapidly during animation
-    const flickerInterval = setInterval(() => {
-      const rx = Math.floor(Math.random() * 4) * 90;
-      const ry = Math.floor(Math.random() * 4) * 90;
-      cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
-    }, 80);
+    // Force reflow so the animation registers cleanly
+    void cube.offsetWidth;
 
-    await new Promise(r => setTimeout(r, 600));
+    // Add rolling animation class (runs the smooth 3D keyframe spin)
+    cube.classList.add('dice-rolling');
 
-    clearInterval(flickerInterval);
+    // Wait for the keyframe animation duration (700ms)
+    await new Promise(r => setTimeout(r, 700));
+
+    // Remove rolling animation class
     cube.classList.remove('dice-rolling');
 
-    // Snap to final face
+    // Snap to final face with a springy transition
     const rot = this.faceRotations[finalValue];
-    cube.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    cube.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     cube.style.transform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
   },
 

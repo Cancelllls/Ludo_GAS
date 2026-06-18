@@ -149,18 +149,18 @@ const dice3DController = {
     const targetRot = this.faceRotations[finalValue];
     const currentRot = this.accumulatedRotations[color] || { x: 0, y: 0 };
 
-    // Spin at least 3-4 full rotations (1080 to 1440 deg) and align final face
-    const nextX = Math.ceil(currentRot.x / 360) * 360 + 1080 + targetRot.x;
-    const nextY = Math.ceil(currentRot.y / 360) * 360 + 1080 + targetRot.y;
+    // Spin at least 2 full rotations (720 deg) and align final face
+    const nextX = Math.ceil(currentRot.x / 360) * 360 + 720 + targetRot.x;
+    const nextY = Math.ceil(currentRot.y / 360) * 360 + 720 + targetRot.y;
 
     this.accumulatedRotations[color] = { x: nextX, y: nextY };
 
     // Smooth physics-like slowdown and springy bounce at landing
-    cube.style.transition = 'transform 1.0s cubic-bezier(0.2, 0.85, 0.3, 1.05)';
+    cube.style.transition = 'transform 0.8s cubic-bezier(0.2, 0.85, 0.3, 1.05)';
     cube.style.transform = `rotateX(${nextX}deg) rotateY(${nextY}deg)`;
 
-    // Wait for the transition to finish (1.0s)
-    await new Promise(r => setTimeout(r, 1000));
+    // Wait for the transition to finish (0.8s)
+    await new Promise(r => setTimeout(r, 800));
   },
 
   resetAll() {
@@ -1563,9 +1563,6 @@ const gameManager = {
       this.state.lastAction = '';
     }
 
-    // Show final face on 3D dice
-    dice3DController.showFace(currentColor, roll);
-
     const dv = document.getElementById('dice-value');
     if (dv) dv.innerText = roll;
 
@@ -1599,8 +1596,6 @@ const gameManager = {
     
     const dv = document.getElementById('dice-value');
     if (dv) dv.innerText = rollResult;
-
-    dice3DController.showFace(currentColor, rollResult);
 
     if (rollResult === 6) {
       Sounds.play('six');

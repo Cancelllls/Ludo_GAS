@@ -1245,96 +1245,64 @@ const gameManager = {
     const currentColor = this.state.currentColor;
 
     if (AppState.mode === 'online_playing') {
-      if (AppState.isSpectator || this.state.currentPlayer.id !== AppState.playerId) return null;
-
-      // Animate 3D dice for current player
-      dice3DController.roll(currentColor, 1); // Start rolling animation
-
-      // Also keep legacy dice animation
-      const dc = document.getElementById('dice-container');
-      if (dc) dc.style.animation = 'flipDice 0.6s linear';
-      let f = setInterval(() => {
-        const dv = document.getElementById('dice-value');
-        if (dv) dv.innerText = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.floor(Math.random() * 6)];
-      }, 50);
-
-      try {
-        const res = await new Promise((resolve) => {
-          google.script.run.withSuccessHandler(resolve).performRoll(AppState.roomCode, multiplayerManager.version);
-        });
-        if (res && res.success) {
-          clearInterval(f);
-          if (dc) dc.style.animation = '';
-          multiplayerManager.version = res.state.version;
-          // Show final face on 3D dice
-          dice3DController.showFace(currentColor, res.state.diceRoll);
-          multiplayerManager.handleStateUpdate(res.state);
-          return res.state.diceRoll;
-        } else {
-          clearInterval(f);
-          if (dc) dc.style.animation = '';
-          const dv = document.getElementById('dice-value');
-          if (dv) dv.innerText = '🎲';
-        }
-      } catch (e) {
-        clearInterval(f);
-        if (dc) dc.style.animation = '';
-        const dv = document.getElementById('dice-value');
-        if (dv) dv.innerText = '🎲';
-      }
-      return null;
-
-    } else {
-      // Local game dice roll with 3D animation
-      const rollPromise = dice3DController.roll(currentColor, 1);
-
-      // Legacy dice animation
-      const dc = document.getElementById('dice-container');
-      if (dc) dc.style.animation = 'flipDice 0.6s linear';
-      let f = setInterval(() => {
-        const dv = document.getElementById('dice-value');
-        if (dv) dv.innerText = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.floor(Math.random() * 6)];
-      }, 50);
-
-      await rollPromise;
-      clearInterval(f);
-      if (dc) dc.style.animation = '';
-
-      let roll;
-      if (this.state.guaranteedSix && this.state.guaranteedSix[this.state.currentColor]) {
-        roll = 6;
-        this.state.guaranteedSix[this.state.currentColor] = false;
-      } else {
-        roll = Math.floor(Math.random() * 6) + 1;
-      }
-
-      this.state.diceRoll = roll;
-      this.state.rollId = Date.now();
-      this.state.hasRolled = true;
-      this.state.remainingRoll = roll;
-
-      if (roll === 6) {
-        if (!this.state.settings || this.state.settings.threeSixes !== false) {
-          this.state.sixesRolled++;
-          if (this.state.sixesRolled >= 3) {
-            this.state.hasRolled = false;
-            this.state.sixesRolled = 0;
-            this.state.nextTurn();
-            this.state.lastAction = '3 Sixes Penalty! Turn lost.';
-          }
-        }
-      } else {
-        this.state.lastAction = '';
-      }
-
-      // Show final face on 3D dice
-      dice3DController.showFace(currentColor, roll);
-
-      const dv = document.getElementById('dice-value');
-      if (dv) dv.innerText = roll;
-      this.postRollCheck();
-      return roll;
+      if (AppState.isSpectator) return null;
+      if (this.state.currentPlayer.id !== AppState.playerId && !(AppState.playerId === 0 && this.state.currentPlayer.isBot)) return null;
     }
+
+    // Local/Optimistic game dice roll with 3D animation
+    const rollPromise = dice3DController.roll(currentColor, 1);
+
+    // Legacy dice animation
+    const dc = document.getElementById('dice-container');
+    if (dc) dc.style.animation = 'flipDice 0.6s linear';
+    let f = setInterval(() => {
+      const dv = document.getElementById('dice-value');
+      if (dv) dv.innerText = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.floor(Math.random() * 6)];
+    }, 50);
+
+    await rollPromise;
+    clearInterval(f);
+    if (dc) dc.style.animation = '';
+
+    let roll;
+    if (this.state.guaranteedSix && this.state.guaranteedSix[this.state.currentColor]) {
+      roll = 6;
+      this.state.guaranteedSix[this.state.currentColor] = false;
+    } else {
+      roll = Math.floor(Math.random() * 6) + 1;
+    }
+
+    this.state.diceRoll = roll;
+    this.state.rollId = Date.now();
+    this.state.hasRolled = true;
+    this.state.remainingRoll = roll;
+
+    if (roll === 6) {
+      if (!this.state.settings || this.state.settings.threeSixes !== false) {
+        this.state.sixesRolled++;
+        if (this.state.sixesRolled >= 3) {
+          this.state.hasRolled = false;
+          this.state.sixesRolled = 0;
+          this.state.nextTurn();
+          this.state.lastAction = '3 Sixes Penalty! Turn lost.';
+        }
+      }
+    } else {
+      this.state.lastAction = '';
+    }
+
+    // Show final face on 3D dice
+    dice3DController.showFace(currentColor, roll);
+
+    const dv = document.getElementById('dice-value');
+    if (dv) dv.innerText = roll;
+
+    if (AppState.mode === 'online_playing') {
+      multiplayerManager.pushState();
+    }
+
+    this.postRollCheck();
+    return roll;
   },
 
   async animateNetworkRoll(rollResult) {
@@ -1422,7 +1390,7 @@ const gameManager = {
     const validMoves = this.state.getValidMoves(this.state.currentColor, this.state.diceRoll);
     if (validMoves.length === 0) {
       setTimeout(() => {
-        const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && this.state.currentPlayer.id === AppState.playerId);
+        const isMyTurn = (AppState.mode === 'online_playing' && !AppState.isSpectator && (this.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && this.state.currentPlayer.isBot)));
         this.state.nextTurn();
         if (isMyTurn) {
           multiplayerManager.pushState();

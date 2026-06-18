@@ -695,17 +695,85 @@
      3D DICE
      ============================================================ */
   .dice-3d { 
+    --dice-size: 52px;
+    --dice-translate-z: 26px;
+    --dice-bounce-height: -28px;
+    --dice-pulse-height: -6px;
+    --dice-face-padding: 8px;
+
+    position: relative;
     perspective: 500px; 
     cursor: pointer; 
     user-select: none; 
     padding: 5px; /* Gives room for the 3D corners to spin without clipping */
   }
 
+  /* 3D Soft Floor Shadow under each dice */
+  .dice-3d::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 10%;
+    width: 80%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    filter: blur(4px);
+    transition: transform 0.4s ease, opacity 0.4s ease, filter 0.4s ease;
+    z-index: 0;
+    pointer-events: none;
+  }
+
   .dice-scene {
-    width: 52px; height: 52px; position: relative;
+    width: var(--dice-size); height: var(--dice-size); position: relative;
     transform-style: preserve-3d;
     /* Isometric tilt so the cube always looks 3D and never like a flat square */
     transform: rotateX(-20deg) rotateY(-20deg);
+  }
+
+  /* When rolling, the parent container bounces up & down */
+  .dice-scene.is-rolling {
+    animation: diceSceneBounce 0.8s cubic-bezier(0.2, 0.85, 0.3, 1.05);
+  }
+
+  /* Active player panel dice pulses gently in height to suggest interaction */
+  .player-panel.panel-active .dice-scene:not(.is-rolling) {
+    animation: activeDiceScenePulse 2.5s infinite ease-in-out;
+  }
+
+  @keyframes diceSceneBounce {
+    0% { transform: rotateX(-20deg) rotateY(-20deg) translateY(0px); }
+    25% { transform: rotateX(-20deg) rotateY(-20deg) translateY(var(--dice-bounce-height)); }
+    50% { transform: rotateX(-20deg) rotateY(-20deg) translateY(0px); }
+    75% { transform: rotateX(-20deg) rotateY(-20deg) translateY(calc(var(--dice-bounce-height) * 0.3)); }
+    100% { transform: rotateX(-20deg) rotateY(-20deg) translateY(0px); }
+  }
+
+  @keyframes activeDiceScenePulse {
+    0%, 100% { transform: rotateX(-20deg) rotateY(-20deg) translateY(0px); }
+    50% { transform: rotateX(-20deg) rotateY(-20deg) translateY(var(--dice-pulse-height)); }
+  }
+
+  /* Shadow animation sync'd with the bounce */
+  .dice-3d:has(.dice-scene.is-rolling)::after {
+    animation: diceShadow 0.8s cubic-bezier(0.2, 0.85, 0.3, 1.05);
+  }
+
+  /* Shadow animation sync'd with the pulse */
+  .player-panel.panel-active .dice-3d:not(:has(.dice-scene.is-rolling))::after {
+    animation: activeDiceShadowPulse 2.5s infinite ease-in-out;
+  }
+
+  @keyframes diceShadow {
+    0%, 100% { transform: scale(1); opacity: 0.45; filter: blur(4px); }
+    25% { transform: scale(0.55); opacity: 0.12; filter: blur(8px); }
+    50% { transform: scale(1.05); opacity: 0.5; filter: blur(3px); }
+    75% { transform: scale(0.85); opacity: 0.28; filter: blur(5px); }
+  }
+
+  @keyframes activeDiceShadowPulse {
+    0%, 100% { transform: scale(1); opacity: 0.45; filter: blur(4px); }
+    50% { transform: scale(0.8); opacity: 0.25; filter: blur(6px); }
   }
 
   .dice-cube {
@@ -715,45 +783,90 @@
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
 
-  .dice-cube.dice-rolling {
-    animation: diceRoll3D 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
-  }
-
-  @keyframes diceRoll3D {
-    0%   { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
-    15%  { transform: rotateX(120deg) rotateY(60deg) rotateZ(30deg); }
-    30%  { transform: rotateX(240deg) rotateY(150deg) rotateZ(-20deg); }
-    50%  { transform: rotateX(400deg) rotateY(240deg) rotateZ(40deg); }
-    70%  { transform: rotateX(600deg) rotateY(330deg) rotateZ(-15deg); }
-    85%  { transform: rotateX(690deg) rotateY(350deg) rotateZ(5deg); }
-    100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(0deg); }
-  }
-
   .dice-face {
-    position: absolute; width: 52px; height: 52px;
+    position: absolute; 
+    width: var(--dice-size); 
+    height: var(--dice-size);
     border-radius: 8px; /* Rounder corners */
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.5), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
     backface-visibility: hidden;
-    padding: 8px;
+    padding: var(--dice-face-padding);
     box-sizing: border-box;
   }
 
-  /* Colored Dice based on Player */
-  .player-panel[data-color="red"] .dice-face { background: linear-gradient(145deg, #ff5252, #c62828); }
-  .player-panel[data-color="green"] .dice-face { background: linear-gradient(145deg, #66bb6a, #2e7d32); }
-  .player-panel[data-color="yellow"] .dice-face { background: linear-gradient(145deg, #ffee58, #f57f17); }
-  .player-panel[data-color="blue"] .dice-face { background: linear-gradient(145deg, #42a5f5, #1565c0); }
+  /* Glossy reflection cover to make faces look like polished acrylic/glass */
+  .dice-face::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, 
+      rgba(255, 255, 255, 0.45) 0%, 
+      rgba(255, 255, 255, 0.18) 35%, 
+      rgba(255, 255, 255, 0) 50%, 
+      rgba(0, 0, 0, 0.18) 100%
+    );
+    pointer-events: none;
+    z-index: 5;
+  }
 
+  /* Colored Dice based on Player — radial light-scattering (subsurface scattering simulation) */
+  .player-panel[data-color="red"] .dice-face {
+    background: radial-gradient(circle at 35% 35%, #ff8080 0%, #e63946 55%, #7a0c1e 100%);
+    border: 1.5px solid rgba(255, 180, 180, 0.55);
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.55), 
+      inset 0 -2px 4px rgba(0, 0, 0, 0.6), 
+      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 0 15px rgba(230, 57, 70, 0.15);
+  }
+  .player-panel[data-color="green"] .dice-face {
+    background: radial-gradient(circle at 35% 35%, #80f0a0 0%, #2b8a3e 55%, #0e461b 100%);
+    border: 1.5px solid rgba(180, 255, 180, 0.55);
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.55), 
+      inset 0 -2px 4px rgba(0, 0, 0, 0.6), 
+      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 0 15px rgba(43, 138, 62, 0.15);
+  }
+  .player-panel[data-color="yellow"] .dice-face {
+    background: radial-gradient(circle at 35% 35%, #fff69d 0%, #f5a623 55%, #aa5500 100%);
+    border: 1.5px solid rgba(255, 255, 180, 0.65);
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.65), 
+      inset 0 -2px 4px rgba(0, 0, 0, 0.5), 
+      inset 0 0 0 1px rgba(0, 0, 0, 0.15),
+      0 0 15px rgba(245, 166, 35, 0.15);
+  }
+  .player-panel[data-color="blue"] .dice-face {
+    background: radial-gradient(circle at 35% 35%, #8bd0ff 0%, #1c7ed6 55%, #083b70 100%);
+    border: 1.5px solid rgba(180, 220, 255, 0.55);
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.55), 
+      inset 0 -2px 4px rgba(0, 0, 0, 0.6), 
+      inset 0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 0 15px rgba(28, 126, 214, 0.15);
+  }
+
+  /* Define colors for the glows */
+  .player-panel[data-color="red"] { --dice-glow-color: rgba(255, 82, 82, 0.6); }
+  .player-panel[data-color="green"] { --dice-glow-color: rgba(102, 187, 106, 0.6); }
+  .player-panel[data-color="yellow"] { --dice-glow-color: rgba(255, 215, 0, 0.6); }
+  .player-panel[data-color="blue"] { --dice-glow-color: rgba(66, 165, 245, 0.6); }
+
+  /* Premium Recessed 3D Pips */
   .dot {
     display: block; border-radius: 50%;
     width: 11px; height: 11px;
-    background: #ffffff;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(255, 255, 255, 0.8);
+    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #ededed 55%, #d1d1d1 100%);
+    box-shadow: 
+      inset 0 1.5px 3px rgba(0, 0, 0, 0.6), 
+      0 1px 1px rgba(255, 255, 255, 0.4);
+    position: relative;
+    z-index: 1; /* Sits beneath the glass sheen cover */
   }
 
   /* Face positions (Standard Dice: opposites sum to 7) */
-  .face-1 { display: flex; transform: rotateY(0deg) translateZ(26px); justify-content: center; align-items: center; }
+  .face-1 { display: flex; transform: rotateY(0deg) translateZ(var(--dice-translate-z)); justify-content: center; align-items: center; }
   .face-1 .dot { width: 14px; height: 14px; }
 
   /* Grid basics for 2, 3, 4, 5, 6 */
@@ -765,7 +878,7 @@
 
   /* 2 is opposite 5 (Bottom) */
   .face-2 {
-    transform: rotateX(-90deg) translateZ(26px);
+    transform: rotateX(-90deg) translateZ(var(--dice-translate-z));
     grid-template-columns: auto auto; grid-template-rows: auto auto;
   }
   .face-2 .dot:nth-child(1) { grid-area: 1 / 2; }
@@ -773,7 +886,7 @@
 
   /* 3 is Left */
   .face-3 {
-    transform: rotateY(-90deg) translateZ(26px);
+    transform: rotateY(-90deg) translateZ(var(--dice-translate-z));
     grid-template-columns: auto auto auto; grid-template-rows: auto auto auto;
   }
   .face-3 .dot:nth-child(1) { grid-area: 1 / 3; }
@@ -782,13 +895,13 @@
 
   /* 4 is opposite 3 (Right) */
   .face-4 {
-    transform: rotateY(90deg) translateZ(26px);
+    transform: rotateY(90deg) translateZ(var(--dice-translate-z));
     grid-template-columns: auto auto; grid-template-rows: auto auto;
   }
 
   /* 5 is Top */
   .face-5 {
-    transform: rotateX(90deg) translateZ(26px);
+    transform: rotateX(90deg) translateZ(var(--dice-translate-z));
     grid-template-columns: auto auto auto; grid-template-rows: auto auto auto;
   }
   .face-5 .dot:nth-child(1) { grid-area: 1 / 1; }
@@ -799,7 +912,7 @@
 
   /* 6 is opposite 1 (Back) */
   .face-6 {
-    transform: rotateY(180deg) translateZ(26px);
+    transform: rotateY(180deg) translateZ(var(--dice-translate-z));
     grid-template-columns: auto auto; grid-template-rows: auto auto auto;
   }
 
@@ -954,14 +1067,13 @@
     /* Game layout handled by absolute positioning */
     .player-panel { padding: 8px 6px; border-radius: 12px; width: 140px; }
     .panel-player-name { font-size: 11px; }
-    .dice-scene { width: 44px; height: 44px; }
-    .dice-face { width: 44px; height: 44px; border-radius: 8px; padding: 6px; }
-    .face-1 { transform: rotateY(0deg) translateZ(22px); }
-    .face-2 { transform: rotateY(180deg) translateZ(22px); }
-    .face-3 { transform: rotateY(-90deg) translateZ(22px); }
-    .face-4 { transform: rotateY(90deg) translateZ(22px); }
-    .face-5 { transform: rotateX(90deg) translateZ(22px); }
-    .face-6 { transform: rotateX(-90deg) translateZ(22px); }
+    .dice-3d {
+      --dice-size: 44px;
+      --dice-translate-z: 22px;
+      --dice-bounce-height: -20px;
+      --dice-pulse-height: -4px;
+      --dice-face-padding: 6px;
+    }
     .dot { width: 8px; height: 8px; }
     .face-1 .dot { width: 12px; height: 12px; }
   }

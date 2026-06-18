@@ -143,8 +143,11 @@ const dice3DController = {
   },
 
   async roll(color, finalValue) {
+    const scene = document.querySelector(`#dice-3d-${color} .dice-scene`);
     const cube = document.querySelector(`#dice-3d-${color} .dice-cube`);
     if (!cube) return;
+
+    if (scene) scene.classList.add('is-rolling');
 
     const targetRot = this.faceRotations[finalValue];
     const currentRot = this.accumulatedRotations[color] || { x: 0, y: 0 };
@@ -161,6 +164,8 @@ const dice3DController = {
 
     // Wait for the transition to finish (0.8s)
     await new Promise(r => setTimeout(r, 800));
+
+    if (scene) scene.classList.remove('is-rolling');
   },
 
   resetAll() {

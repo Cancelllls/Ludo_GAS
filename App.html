@@ -2059,6 +2059,9 @@ const multiplayerManager = {
       if (res.updated) {
         this.version = res.state.version;
         this.handleStateUpdate(res.state);
+      } else if (res.reactions) {
+        // Even if the main board state hasn't changed, display any new decoupled reactions
+        this.pollReactions({ reactions: res.reactions, players: gameManager.state ? gameManager.state.players : [] });
       }
     } catch (e) {
       console.error("Poll error", e);

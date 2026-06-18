@@ -123,7 +123,8 @@ function createRoom(playerName, isPrivate, hostColor, settings) {
       lastAction: 'Room created'
     };
     
-    cache.put('R_' + roomCode, JSON.stringify(initialGameState), CACHE_TIMEOUT);
+    cache.put('REACTIONS_' + roomCode, JSON.stringify([]), CACHE_TIMEOUT);
+    saveRoomState(cache, roomCode, initialGameState);
     
     const rooms = getActiveRooms();
     rooms.push(roomCode);
@@ -149,6 +150,7 @@ function joinRoom(roomCode, playerName, chosenColor) {
     const state = JSON.parse(stateStr);
     if (isRoomExpired(state)) {
       cache.remove('R_' + roomCode);
+      cache.remove('REACTIONS_' + roomCode);
       return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
     }
     
@@ -159,7 +161,7 @@ function joinRoom(roomCode, playerName, chosenColor) {
       existingPlayer.name = playerName; 
       state.lastAction = playerName + ' reconnected';
       state.version++;
-      cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+      saveRoomState(cache, roomCode, state);
       return { success: true, state: state, playerId: existingPlayer.id, isSpectator: false };
     }
 
@@ -193,7 +195,7 @@ function joinRoom(roomCode, playerName, chosenColor) {
     }
     
     state.version++;
-    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    saveRoomState(cache, roomCode, state);
     
     return { success: true, state: state, playerId: newPlayerId, isSpectator: isSpectator };
   } finally {
@@ -214,6 +216,7 @@ function addBotToRoom(roomCode, botColor) {
     const state = JSON.parse(stateStr);
     if (isRoomExpired(state)) {
       cache.remove('R_' + roomCode);
+      cache.remove('REACTIONS_' + roomCode);
       return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
     }
     
@@ -235,7 +238,7 @@ function addBotToRoom(roomCode, botColor) {
     state.version++;
     state.lastAction = 'Bot added';
     
-    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    saveRoomState(cache, roomCode, state);
     return { success: true, state: state };
   } finally {
     lock.releaseLock();
@@ -255,6 +258,7 @@ function startGame(roomCode) {
     const state = JSON.parse(stateStr);
     if (isRoomExpired(state)) {
       cache.remove('R_' + roomCode);
+      cache.remove('REACTIONS_' + roomCode);
       return null;
     }
     
@@ -262,7 +266,7 @@ function startGame(roomCode) {
       state.state = 'PLAYING';
       state.version++;
       state.lastAction = 'Game started';
-      cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+      saveRoomState(cache, roomCode, state);
     }
     return state;
   } finally {
@@ -286,14 +290,20 @@ function getRoomState(roomCode, clientVersion) {
   
   if (createdAt && (Date.now() - createdAt) > ROOM_EXPIRY_MS) {
     cache.remove('R_' + roomCode);
+    cache.remove('REACTIONS_' + roomCode);
     return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
   }
   
+  // Load reactions separately so they never cause concurrent write conflicts
+  const reactionsStr = cache.get('REACTIONS_' + roomCode);
+  const reactions = reactionsStr ? JSON.parse(reactionsStr) : [];
+
   if (version > clientVersion) {
     const state = JSON.parse(stateStr);
+    state.reactions = reactions; // Merge reactions list for the client state update
     return { success: true, updated: true, state: state };
   } else {
-    return { success: true, updated: false, version: version };
+    return { success: true, updated: false, version: version, reactions: reactions };
   }
 }
 
@@ -310,6 +320,7 @@ function updateRoomState(roomCode, newStateDelta, expectedVersion) {
     const state = JSON.parse(stateStr);
     if (isRoomExpired(state)) {
       cache.remove('R_' + roomCode);
+      cache.remove('REACTIONS_' + roomCode);
       return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
     }
     
@@ -334,7 +345,7 @@ function updateRoomState(roomCode, newStateDelta, expectedVersion) {
     }
     
     state.version++;
-    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    saveRoomState(cache, roomCode, state);
     
     return { success: true, state: state };
   } finally {
@@ -348,29 +359,36 @@ function sendReaction(roomCode, playerId, emoji) {
   if (!lock.tryLock(LOCK_TIMEOUT)) return { success: false };
   
   try {
+    // Check if room exists
     const stateStr = cache.get('R_' + roomCode);
     if (!stateStr) return { success: false };
-    const state = JSON.parse(stateStr);
-    if (isRoomExpired(state)) {
-      cache.remove('R_' + roomCode);
-      return { success: false };
-    }
     
-    if (!state.reactions) state.reactions = [];
-    state.reactions.push({
+    const reactionsStr = cache.get('REACTIONS_' + roomCode);
+    let reactions = reactionsStr ? JSON.parse(reactionsStr) : [];
+    
+    reactions.push({
       playerId: playerId,
       emoji: emoji,
       time: new Date().getTime()
     });
     
-    state.reactions = state.reactions.filter(r => new Date().getTime() - r.time < 10000);
-    state.version++;
+    const now = new Date().getTime();
+    reactions = reactions.filter(r => now - r.time < 10000);
     
-    cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+    cache.put('REACTIONS_' + roomCode, JSON.stringify(reactions), CACHE_TIMEOUT);
     return { success: true };
   } finally {
     lock.releaseLock();
   }
+}
+
+function saveRoomState(cache, roomCode, state) {
+  // Clone state and remove reactions to keep the main room state clean from concurrency race bugs
+  const stateCopy = { ...state };
+  if (stateCopy.reactions) {
+    delete stateCopy.reactions;
+  }
+  cache.put('R_' + roomCode, JSON.stringify(stateCopy), CACHE_TIMEOUT);
 }
 function leaveRoom(roomCode, playerId) {
   if (!roomCode) return { success: false };
@@ -384,6 +402,7 @@ function leaveRoom(roomCode, playerId) {
     if (!stateStr || isRoomExpired(JSON.parse(stateStr))) {
       // Room might already be deleted or expired
       cache.remove('R_' + roomCode);
+      cache.remove('REACTIONS_' + roomCode);
       let rooms = getActiveRooms();
       if (rooms.includes(roomCode)) {
         rooms = rooms.filter(r => r !== roomCode);
@@ -397,6 +416,7 @@ function leaveRoom(roomCode, playerId) {
     // If host leaves or no humans left, destroy room
     if (playerId === 0 || state.players.filter(p => !p.isBot && p.id !== playerId).length === 0) {
       cache.remove('R_' + roomCode);
+      cache.remove('REACTIONS_' + roomCode);
       let rooms = getActiveRooms();
       rooms = rooms.filter(r => r !== roomCode);
       saveActiveRooms(rooms);
@@ -408,7 +428,7 @@ function leaveRoom(roomCode, playerId) {
         p.name = p.name + ' (Bot)';
       }
       state.version++;
-      cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+      saveRoomState(cache, roomCode, state);
     }
     
     return { success: true };

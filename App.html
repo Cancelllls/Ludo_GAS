@@ -1515,8 +1515,8 @@ const multiplayerManager = {
 
   async refreshLobby() {
     try {
-      const rooms = await new Promise((resolve) => {
-        google.script.run.withSuccessHandler(resolve).getLobbyState();
+      const rooms = await new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getLobbyState();
       });
 
       const listDiv = document.getElementById('lobby-browser');
@@ -1605,7 +1605,13 @@ const multiplayerManager = {
         AppState.playerName = name;
         AppState.isSpectator = res.isSpectator;
         this.version = res.state.version;
-        uiManager.showWaitingRoom(AppState.roomCode, res.state.players, AppState.playerId === 0, res.state.spectators);
+
+        if (res.state.state === 'PLAYING') {
+          AppState.mode = 'online_waiting'; // Fake wait to force transition in handleStateUpdate
+          this.handleStateUpdate(res.state);
+        } else {
+          uiManager.showWaitingRoom(AppState.roomCode, res.state.players, AppState.playerId === 0, res.state.spectators);
+        }
         this.startPolling();
       } else {
         document.getElementById('online-status').innerText = res.error;
@@ -1705,20 +1711,18 @@ const multiplayerManager = {
 
       this.pollReactions(state);
 
-      if (state.lastAction && state.lastAction.includes('started')) {
+      let previousRollId = gameManager.state.rollId;
+
+      if (state.rollId && state.rollId !== previousRollId) {
+        gameManager.state.deserialize(state);
+        gameManager.animateNetworkRoll(state.diceRoll, true);
       } else {
-        let previousRollId = gameManager.state.rollId;
+        gameManager.state.deserialize(state);
+        renderer.draw(gameManager.state);
+        uiManager.updateGameUI(gameManager.state);
+      }
 
-        if (state.rollId && state.rollId !== previousRollId) {
-          gameManager.state.deserialize(state);
-          gameManager.animateNetworkRoll(state.diceRoll, true);
-        } else {
-          gameManager.state.deserialize(state);
-          renderer.draw(gameManager.state);
-          uiManager.updateGameUI(gameManager.state);
-        }
-
-        if (gameManager.state.winner) {
+      if (gameManager.state.winner) {
           let winnerText = `${gameManager.state.winner.toUpperCase()} WINS!`;
           uiManager.showModal("Game Over", `
             <div style="text-align:center;">
@@ -1760,7 +1764,9 @@ const multiplayerManager = {
         });
 
         if (res && res.success) {
-          this.version = res.state.version;
+          if (res.state.version > this.version) {
+             this.version = res.state.version;
+          }
           success = true;
           task.resolve({ success: true, version: res.state.version });
         } else {
@@ -1792,10 +1798,12 @@ const multiplayerManager = {
     const delta = gameManager.state.serialize();
     const currentVersion = this.version;
 
+    // Optimistically increment locally to avoid double-pushes, but revert on fail
     this.version++;
 
     const res = await this.queueStatePush(delta, currentVersion, null);
     if (!res.success) {
+       this.version = currentVersion; // Revert the optimistic version bump!
        this.poll();
     }
     return res.success;
@@ -1815,8 +1823,8 @@ const multiplayerManager = {
   async sendReaction(emoji) {
     if (!AppState.roomCode || AppState.playerId === null) return;
     try {
-      await new Promise((resolve) => {
-        google.script.run.withSuccessHandler(resolve).sendReaction(AppState.roomCode, AppState.playerId, emoji);
+      await new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).sendReaction(AppState.roomCode, AppState.playerId, emoji);
       });
     } catch (e) { }
   },

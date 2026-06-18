@@ -332,7 +332,8 @@ const LudoEngine = (function() {
         guaranteedSix: this.guaranteedSix,
         turnCount: this.turnCount,
         remainingRoll: this.remainingRoll,
-        earnedBonus: this.earnedBonus
+        earnedBonus: this.earnedBonus,
+        lastAction: this.lastAction
       };
     }
     
@@ -363,6 +364,7 @@ const LudoEngine = (function() {
       this.turnCount = data.turnCount || 0;
       this.remainingRoll = data.remainingRoll || 0;
       this.earnedBonus = !!data.earnedBonus;
+      this.lastAction = data.lastAction || '';
     }
   }
 

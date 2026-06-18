@@ -1279,6 +1279,23 @@ const renderer = {
       selectedTid = validMoves.find(id => s.tokens[id].pos === clickedPos);
     }
 
+    let clickedAnyOwnToken = null;
+    for (let id in s.tokens) {
+      let t = s.tokens[id];
+      if (t.color === s.currentColor) {
+        if (clickedPos === null) {
+          let bc = this.bases[t.color];
+          if (t.pos === -1 && (Math.abs(col + 0.5 - bc.x) < 2.5 && Math.abs(row + 0.5 - bc.y) < 2.5)) {
+            clickedAnyOwnToken = id;
+          }
+        } else {
+          if (t.pos === clickedPos) {
+            clickedAnyOwnToken = id;
+          }
+        }
+      }
+    }
+
     if (selectedTid) {
       if (s.settings && s.settings.splitMoves) {
         let t = s.tokens[selectedTid];
@@ -1299,6 +1316,8 @@ const renderer = {
       } else {
         gameManager.moveToken(selectedTid, s.diceRoll);
       }
+    } else if (clickedAnyOwnToken) {
+      Sounds.play('error');
     }
   }
 };
@@ -1309,6 +1328,7 @@ const gameManager = {
   blitzTimer: null,
   blitzTimeLeft: 15,
   currentBlitzAction: null,
+  lastTickTime: null,
 
   startLocalGame() {
     const pc = parseInt(document.getElementById('local-player-count').value);
@@ -1405,10 +1425,20 @@ const gameManager = {
         this.takeAFKTurn();
       }
       
-      // If it is my turn locally/online and I go AFK, auto play
       const isMyTurn = AppState.mode === 'local' 
         ? !this.state.currentPlayer.isBot 
         : (!AppState.isSpectator && this.state.currentPlayer.id === AppState.playerId);
+
+      // Play warning sound when time is running out (last 5 seconds)
+      if (isMyTurn && timeLeft > 0 && timeLeft <= 5) {
+        if (this.lastTickTime !== timeLeft) {
+          this.lastTickTime = timeLeft;
+          Sounds.play('tick');
+        }
+      } else if (timeLeft > 5) {
+        this.lastTickTime = null;
+      }
+
       if (isMyTurn && timeLeft <= 0) {
         console.log("Local AFK timeout, auto-playing...");
         this.autoPlayCurrentTurn();
@@ -1501,6 +1531,7 @@ const gameManager = {
     this.state.turnStartTime = Date.now(); // Reset timer for the move phase
 
     if (roll === 6) {
+      Sounds.play('six');
       if (!this.state.settings || this.state.settings.threeSixes !== false) {
         this.state.sixesRolled++;
         if (this.state.sixesRolled >= 3) {
@@ -1552,6 +1583,10 @@ const gameManager = {
 
     dice3DController.showFace(currentColor, rollResult);
 
+    if (rollResult === 6) {
+      Sounds.play('six');
+    }
+
     renderer.draw(this.state);
     uiManager.updateGameUI(this.state);
     this.postRollCheck(isNetworkSync);
@@ -1569,9 +1604,17 @@ const gameManager = {
                       (this.state.currentPlayer.id === AppState.playerId || 
                       (AppState.playerId === 0 && (this.state.currentPlayer.isBot || force))));
     
-    this.state.moveToken(tokenId, st);
+    const moveResult = this.state.moveToken(tokenId, st);
 
-    Sounds.play('move');
+    if (this.state.winner) {
+      Sounds.play('victory');
+    } else if (moveResult && moveResult.captured) {
+      Sounds.play('capture');
+    } else if (moveResult && moveResult.finished) {
+      Sounds.play('home');
+    } else {
+      Sounds.play('move');
+    }
 
     renderer.draw(this.state);
     uiManager.updateGameUI(this.state);

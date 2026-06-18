@@ -152,6 +152,17 @@ function joinRoom(roomCode, playerName, chosenColor) {
       return { success: false, error: 'Room expired (1 hour maximum duration reached).' };
     }
     
+    // Reconnection check: if player color matches and they are currently a bot (disconnected / refreshed)
+    let existingPlayer = state.players.find(p => p.color === chosenColor);
+    if (existingPlayer && existingPlayer.isBot) {
+      existingPlayer.isBot = false;
+      existingPlayer.name = playerName; 
+      state.lastAction = playerName + ' reconnected';
+      state.version++;
+      cache.put('R_' + roomCode, JSON.stringify(state), CACHE_TIMEOUT);
+      return { success: true, state: state, playerId: existingPlayer.id, isSpectator: false };
+    }
+
     let isSpectator = false;
     let newPlayerId = -1;
     

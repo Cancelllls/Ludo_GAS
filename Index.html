@@ -56,6 +56,12 @@
         <h1 class="game-title">LUDO KING</h1>
         <p class="version-text">v2.0 — Premium Edition</p>
 
+        <div id="rejoin-section" class="rejoin-section hidden" style="margin-bottom: 25px; width: 100%;">
+          <button class="btn-primary" onclick="gameManager.reconnectGame()" style="background: var(--accent-gold); color: #111; border-color: var(--accent-gold); font-weight: bold; width: 100%;">
+             🔄 Rejoin Active Game (PIN: <span id="rejoin-room-code"></span>)
+          </button>
+        </div>
+
         <div class="menu-buttons">
           <button class="btn-primary" onclick="uiManager.showLocalMenu()">
             <span class="btn-icon">🎮</span> Pass &amp; Play / Vs Computer

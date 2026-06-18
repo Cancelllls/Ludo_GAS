@@ -1235,6 +1235,13 @@ const gameManager = {
     uiManager.showGame();
     this.startTurnTimer();
     this.loop();
+
+    // Save active session for reconnection
+    localStorage.setItem('ludo_active_room', AppState.roomCode);
+    localStorage.setItem('ludo_player_id', AppState.playerId);
+    const hostPlayer = stateData.players.find(p => p.id === AppState.playerId);
+    localStorage.setItem('ludo_player_name', document.getElementById('player-name').value || (hostPlayer ? hostPlayer.name : ''));
+    localStorage.setItem('ludo_player_color', AppState.selectedColor || (hostPlayer ? hostPlayer.color : ''));
   },
 
   startBlitzTimer(actionKey) {
@@ -1553,7 +1560,53 @@ const gameManager = {
     if (AppState.mode === 'online_playing') {
       multiplayerManager.leaveRoom();
     }
+    
+    // Clear reconnection cache on deliberate exit
+    localStorage.removeItem('ludo_active_room');
+    localStorage.removeItem('ludo_player_id');
+    localStorage.removeItem('ludo_player_name');
+    localStorage.removeItem('ludo_player_color');
+    const rejoinSection = document.getElementById('rejoin-section');
+    if (rejoinSection) rejoinSection.classList.add('hidden');
+
     uiManager.showMainMenu();
+  },
+
+  async reconnectGame() {
+    const roomCode = localStorage.getItem('ludo_active_room');
+    const playerName = localStorage.getItem('ludo_player_name');
+    const chosenColor = localStorage.getItem('ludo_player_color');
+    
+    if (!roomCode || !playerName || !chosenColor) return;
+    
+    uiManager.showModal("Reconnecting", "Rejoining game room...");
+    
+    try {
+      const res = await new Promise((resolve) => {
+        google.script.run.withSuccessHandler(resolve).joinRoom(roomCode, playerName, chosenColor);
+      });
+      
+      uiManager.closeModal();
+      
+      if (res && res.success) {
+        AppState.roomCode = roomCode;
+        AppState.playerId = res.playerId;
+        AppState.isSpectator = res.isSpectator;
+        document.getElementById('player-name').value = playerName;
+        multiplayerManager.selectColor(chosenColor);
+        
+        multiplayerManager.version = res.state.version;
+        this.startOnlineGame(res.state);
+        multiplayerManager.startPolling();
+      } else {
+        uiManager.showModal("Error", res ? res.error : "Failed to reconnect.");
+        localStorage.removeItem('ludo_active_room');
+        const rSec = document.getElementById('rejoin-section');
+        if (rSec) rSec.classList.add('hidden');
+      }
+    } catch (e) {
+      uiManager.showModal("Error", "Network error. Failed to reconnect.");
+    }
   }
 };
 
@@ -1942,6 +1995,15 @@ const multiplayerManager = {
     AppState.roomCode = null;
     AppState.playerId = null;
     AppState.isSpectator = false;
+    
+    // Clear session storage on deliberate exit
+    localStorage.removeItem('ludo_active_room');
+    localStorage.removeItem('ludo_player_id');
+    localStorage.removeItem('ludo_player_name');
+    localStorage.removeItem('ludo_player_color');
+    const rejoinSection = document.getElementById('rejoin-section');
+    if (rejoinSection) rejoinSection.classList.add('hidden');
+
     uiManager.showMainMenu();
   },
 
@@ -1994,5 +2056,14 @@ window.onload = () => {
   darkModeManager.init();
   soundManager.init();
   renderer.init();
+
+  // Show rejoin game button if session is active
+  const activeRoom = localStorage.getItem('ludo_active_room');
+  const rejoinSection = document.getElementById('rejoin-section');
+  const rejoinRoomCode = document.getElementById('rejoin-room-code');
+  if (activeRoom && rejoinSection && rejoinRoomCode) {
+    rejoinRoomCode.innerText = activeRoom;
+    rejoinSection.classList.remove('hidden');
+  }
 };
 </script>

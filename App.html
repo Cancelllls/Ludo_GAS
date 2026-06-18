@@ -65,6 +65,43 @@ const soundManager = {
   }
 };
 
+// ─── Theme Manager ──────────────────────────────────────────
+const themeManager = {
+  themes: ['classic', 'neon', 'wooden', 'pastel'],
+  currentTheme: 'classic',
+
+  init() {
+    const saved = localStorage.getItem('ludoKingTheme');
+    if (this.themes.includes(saved)) {
+      this.currentTheme = saved;
+    }
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', () => this.cycle());
+      toggle.title = `Current Theme: ${this.currentTheme.toUpperCase()}`;
+    }
+  },
+  cycle() {
+    const idx = this.themes.indexOf(this.currentTheme);
+    const nextIdx = (idx + 1) % this.themes.length;
+    this.currentTheme = this.themes[nextIdx];
+    localStorage.setItem('ludoKingTheme', this.currentTheme);
+    
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) {
+      toggle.title = `Current Theme: ${this.currentTheme.toUpperCase()}`;
+    }
+    
+    // Clear offscreen canvas to force redraw of the board with new theme
+    if (renderer.offscreenCanvas) {
+      renderer.offscreenCanvas.width = 0;
+    }
+    if (gameManager.state) {
+      renderer.draw(gameManager.state);
+    }
+  }
+};
+
 // ─── 3D Dice Controller ──────────────────────────────────────
 const dice3DController = {
   // Rotation values for each face result (1-6)
@@ -566,7 +603,76 @@ const renderer = {
   },
 
   getBoardColors() {
-    // Disregard dark mode for the board canvas itself - keep it authentic Ludo King style!
+    const theme = typeof themeManager !== 'undefined' ? themeManager.currentTheme : 'classic';
+    if (theme === 'neon') {
+      return {
+        red: '#FF007F',      // Neon Pink
+        blue: '#9D00FF',     // Synthwave Purple
+        green: '#00FFFF',    // Cyber Cyan
+        yellow: '#FF9F00',   // Neon Orange
+        redDark: '#C0005A',
+        blueDark: '#7000B3',
+        greenDark: '#00B3B3',
+        yellowDark: '#D87B00',
+        redLight: '#FF3399',
+        blueLight: '#B233FF',
+        greenLight: '#33FFFF',
+        yellowLight: '#FFB333',
+        boardBg: '#0A0416',
+        cellBg: '#170F2C',
+        cellBorder: 'rgba(74, 53, 117, 0.4)',
+        centerBg: '#1B1135',
+        starBg: '#382060',
+        text: '#E2D9F3',
+        shadow: 'rgba(0,0,0,0.5)'
+      };
+    } else if (theme === 'wooden') {
+      return {
+        red: '#B2533E',      // Terracotta Red
+        blue: '#4F709C',     // Slate Blue
+        green: '#5C8374',    // Sage Green
+        yellow: '#DFD3C3',   // Sand/Beige
+        redDark: '#8E3E2F',
+        blueDark: '#213555',
+        greenDark: '#456255',
+        yellowDark: '#B5A595',
+        redLight: '#C37361',
+        blueLight: '#728FBA',
+        greenLight: '#7E9F92',
+        yellowLight: '#EBE4C9',
+        boardBg: '#F3EEEA',
+        cellBg: '#EBE3D5',
+        cellBorder: 'rgba(176, 166, 149, 0.4)',
+        centerBg: '#DFD3C3',
+        starBg: '#D0C0B0',
+        text: '#3A2E2B',
+        shadow: 'rgba(0,0,0,0.15)'
+      };
+    } else if (theme === 'pastel') {
+      return {
+        red: '#FFB7B2',      // Soft Coral
+        blue: '#C7CEEA',     // Pastel Blue
+        green: '#B5EAD7',    // Mint Green
+        yellow: '#FFF9A6',   // Soft Lemon
+        redDark: '#FF8B85',
+        blueDark: '#A4B2E6',
+        greenDark: '#8AE0C2',
+        yellowDark: '#FFE57F',
+        redLight: '#FFD1CF',
+        blueLight: '#E2E6F6',
+        greenLight: '#D6F5EB',
+        yellowLight: '#FFFBD0',
+        boardBg: '#FAF8F5',
+        cellBg: '#FFFFFF',
+        cellBorder: 'rgba(224, 220, 211, 0.5)',
+        centerBg: '#F5F3ED',
+        starBg: '#ECEAE4',
+        text: '#4A4A4A',
+        shadow: 'rgba(0,0,0,0.08)'
+      };
+    }
+    
+    // Default: 'classic'
     return {
       red: '#F44336',
       blue: '#2196F3',
@@ -576,9 +682,13 @@ const renderer = {
       blueDark: '#1976D2',
       greenDark: '#388E3C',
       yellowDark: '#FBC02D',
+      redLight: '#FF5252',
+      blueLight: '#42A5F5',
+      greenLight: '#66BB6A',
+      yellowLight: '#FFEE58',
       boardBg: '#FFFFFF',
       cellBg: '#FFFFFF',
-      cellBorder: '#BDBDBD',
+      cellBorder: 'rgba(0,0,0,0.09)',
       centerBg: '#F5F5F5',
       starBg: '#E8E8E8',
       text: '#333333',
@@ -617,10 +727,10 @@ const renderer = {
       ctx.stroke();
     };
 
-    draw3DQuadrant(0, 0, cs * 6, cs * 6, c.red, '#FF5252');
-    draw3DQuadrant(cs * 9, 0, cs * 6, cs * 6, c.green, '#66BB6A');
-    draw3DQuadrant(cs * 9, cs * 9, cs * 6, cs * 6, c.yellow, '#FFEE58');
-    draw3DQuadrant(0, cs * 9, cs * 6, cs * 6, c.blue, '#42A5F5');
+    draw3DQuadrant(0, 0, cs * 6, cs * 6, c.red, c.redLight);
+    draw3DQuadrant(cs * 9, 0, cs * 6, cs * 6, c.green, c.greenLight);
+    draw3DQuadrant(cs * 9, cs * 9, cs * 6, cs * 6, c.yellow, c.yellowLight);
+    draw3DQuadrant(0, cs * 9, cs * 6, cs * 6, c.blue, c.blueLight);
 
     // ─── Base inner white area with shadow ────────
     ctx.shadowColor = c.shadow;
@@ -664,7 +774,7 @@ const renderer = {
         // Draw cup bottom
         ctx.beginPath();
         ctx.arc(pos.x * cs, pos.y * cs, cs * 0.38, 0, Math.PI * 2);
-        ctx.fillStyle = '#EAEAEA';
+        ctx.fillStyle = theme === 'neon' ? '#170F2C' : '#EAEAEA';
         ctx.fill();
 
         // Inner shadow to represent physical depth
@@ -719,18 +829,18 @@ const renderer = {
     for (let cell of this.cells) {
       // Base cell gradient
       let cellGrad = ctx.createLinearGradient(cell.x * cs, cell.y * cs, (cell.x + 1) * cs, (cell.y + 1) * cs);
-      cellGrad.addColorStop(0, '#FFFFFF');
-      cellGrad.addColorStop(1, '#ECECEC');
+      cellGrad.addColorStop(0, c.cellBg);
+      cellGrad.addColorStop(1, c.centerBg || c.cellBg);
       ctx.fillStyle = cellGrad;
       ctx.fillRect(cell.x * cs, cell.y * cs, cs, cs);
 
       // Soft boundary
-      ctx.strokeStyle = 'rgba(0,0,0,0.09)';
+      ctx.strokeStyle = c.cellBorder;
       ctx.lineWidth = 1;
       ctx.strokeRect(cell.x * cs, cell.y * cs, cs, cs);
 
       // Bevel Highlights (raised edges)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.strokeStyle = theme === 'neon' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.95)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(cell.x * cs + 0.5, cell.y * cs + cs - 0.5);
@@ -768,11 +878,11 @@ const renderer = {
     for (let i of LudoEngine.STAR_ZONES) {
       let cell = this.cells[i];
       let safeCol = c.starBg;
-      let safeColLight = '#F0F0F0';
-      if (i === 0) { safeCol = c.red; safeColLight = '#FF5252'; }
-      else if (i === 13) { safeCol = c.green; safeColLight = '#66BB6A'; }
-      else if (i === 26) { safeCol = c.yellow; safeColLight = '#FFEE58'; }
-      else if (i === 39) { safeCol = c.blue; safeColLight = '#42A5F5'; }
+      let safeColLight = c.boardBg;
+      if (i === 0) { safeCol = c.red; safeColLight = c.redLight; }
+      else if (i === 13) { safeCol = c.green; safeColLight = c.greenLight; }
+      else if (i === 26) { safeCol = c.yellow; safeColLight = c.yellowLight; }
+      else if (i === 39) { safeCol = c.blue; safeColLight = c.blueLight; }
 
       let cellGrad = ctx.createLinearGradient(cell.x * cs, cell.y * cs, (cell.x + 1) * cs, (cell.y + 1) * cs);
       cellGrad.addColorStop(0, safeColLight);
@@ -2077,6 +2187,7 @@ const multiplayerManager = {
 window.onload = () => {
   darkModeManager.init();
   soundManager.init();
+  themeManager.init();
   renderer.init();
 
   // Show rejoin game button if session is active

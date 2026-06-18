@@ -1249,6 +1249,8 @@ const gameManager = {
       if (this.state.currentPlayer.id !== AppState.playerId && !(AppState.playerId === 0 && this.state.currentPlayer.isBot)) return null;
     }
 
+    Sounds.play('roll');
+
     // Local/Optimistic game dice roll with 3D animation
     const rollPromise = dice3DController.roll(currentColor, 1);
 
@@ -1308,6 +1310,8 @@ const gameManager = {
   async animateNetworkRoll(rollResult, isNetworkSync = true) {
     const currentColor = this.state.currentColor;
 
+    Sounds.play('roll');
+
     // 3D dice animation
     await dice3DController.roll(currentColor, rollResult);
 
@@ -1342,6 +1346,8 @@ const gameManager = {
     let st = steps || this.state.diceRoll;
     this.state.moveToken(tokenId, st);
 
+    Sounds.play('move');
+
     renderer.draw(this.state);
     uiManager.updateGameUI(this.state);
 
@@ -1351,41 +1357,13 @@ const gameManager = {
         multiplayerManager.version++;
         const delta = this.state.serialize();
 
-        let retries = 3;
-        let delay = 300;
-        let success = false;
-
-        while (retries > 0 && !success) {
-          try {
-            const res = await new Promise((resolve) => {
-              google.script.run.withSuccessHandler(resolve).updateRoomState(AppState.roomCode, delta, oldVersion);
-            });
-            if (res && res.success) {
-              multiplayerManager.version = res.state.version;
-              success = true;
-            } else {
-              if (res && res.error && res.error.includes('Lock')) {
-                retries--;
-                if (retries > 0) {
-                  await new Promise(r => setTimeout(r, delay));
-                  delay *= 2;
-                  continue;
-                }
-              }
-              this.state.deserialize(JSON.parse(backupStateStr));
-              multiplayerManager.version = oldVersion;
-              renderer.draw(this.state);
-              uiManager.updateGameUI(this.state);
-              multiplayerManager.poll();
-              success = true; // exit loop
-            }
-          } catch (e) {
-            this.state.deserialize(JSON.parse(backupStateStr));
-            multiplayerManager.version = oldVersion;
-            renderer.draw(this.state);
-            uiManager.updateGameUI(this.state);
-            success = true; // exit loop
-          }
+        const res = await multiplayerManager.queueStatePush(delta, oldVersion, backupStateStr);
+        if (!res.success) {
+          this.state.deserialize(JSON.parse(backupStateStr));
+          multiplayerManager.version = oldVersion;
+          renderer.draw(this.state);
+          uiManager.updateGameUI(this.state);
+          multiplayerManager.poll();
         }
       }
     }
@@ -1486,6 +1464,8 @@ const multiplayerManager = {
   pollTimer: null,
   lobbyTimer: null,
   seenReactions: {},
+  pushQueue: [],
+  isPushing: false,
 
   selectColor(color) {
     document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('selected'));
@@ -1666,14 +1646,24 @@ const multiplayerManager = {
     }
   },
 
-  scheduleNextPoll(delay = 2000) {
+  scheduleNextPoll(delay = null) {
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (!this.pollingActive) return;
+
+    let targetDelay = delay;
+    if (targetDelay === null) {
+      targetDelay = 2000;
+      if (gameManager.state && AppState.mode === 'online_playing' && gameManager.state.state === 'PLAYING') {
+        const isMyTurn = (!AppState.isSpectator && (gameManager.state.currentPlayer.id === AppState.playerId || (AppState.playerId === 0 && gameManager.state.currentPlayer.isBot)));
+        if (isMyTurn) targetDelay = 5000;
+      }
+    }
+
     this.pollTimer = setTimeout(async () => {
       if (!this.pollingActive) return;
       await this.poll();
-      this.scheduleNextPoll(2000);
-    }, delay);
+      this.scheduleNextPoll(null);
+    }, targetDelay);
   },
 
   async poll() {
@@ -1747,25 +1737,32 @@ const multiplayerManager = {
     }
   },
 
-  async pushState() {
-    if (AppState.mode !== 'online_playing' || !gameManager.state || AppState.isSpectator) return;
-    const delta = gameManager.state.serialize();
-    const currentVersion = this.version;
+  queueStatePush(delta, oldVersion, backupStateStr) {
+    return new Promise((resolve) => {
+      this.pushQueue.push({ delta, oldVersion, backupStateStr, resolve });
+      this.processPushQueue();
+    });
+  },
 
-    this.version++;
+  async processPushQueue() {
+    if (this.isPushing || this.pushQueue.length === 0) return;
+    this.isPushing = true;
 
+    const task = this.pushQueue.shift();
     let retries = 3;
     let delay = 300;
+    let success = false;
 
-    while (retries > 0) {
+    while (retries > 0 && !success) {
       try {
         const res = await new Promise((resolve) => {
-          google.script.run.withSuccessHandler(resolve).updateRoomState(AppState.roomCode, delta, currentVersion);
+          google.script.run.withSuccessHandler(resolve).updateRoomState(AppState.roomCode, task.delta, task.oldVersion);
         });
 
         if (res && res.success) {
           this.version = res.state.version;
-          return;
+          success = true;
+          task.resolve({ success: true, version: res.state.version });
         } else {
           if (res && res.error && res.error.includes('Lock')) {
             retries--;
@@ -1776,13 +1773,30 @@ const multiplayerManager = {
             }
           }
           console.error("Sync conflict or error", res);
-          this.poll();
-          return;
+          task.resolve({ success: false, error: res ? res.error : 'Unknown error' });
+          success = true; // exit loop
         }
       } catch (e) {
         console.error(e);
-        return;
+        task.resolve({ success: false, error: e.message });
+        success = true; // exit loop
       }
+    }
+
+    this.isPushing = false;
+    this.processPushQueue();
+  },
+
+  async pushState() {
+    if (AppState.mode !== 'online_playing' || !gameManager.state || AppState.isSpectator) return;
+    const delta = gameManager.state.serialize();
+    const currentVersion = this.version;
+
+    this.version++;
+
+    const res = await this.queueStatePush(delta, currentVersion, null);
+    if (!res.success) {
+       this.poll();
     }
   },
 

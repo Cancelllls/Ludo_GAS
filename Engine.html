@@ -312,6 +312,11 @@ const LudoEngine = (function() {
     }
     
     serialize() {
+      // Limit reactions array size to prevent CacheService payload limit exhaustion
+      const cappedReactions = this.reactions && this.reactions.length > 15
+        ? this.reactions.slice(this.reactions.length - 15)
+        : this.reactions;
+
       return {
         turnIndex: this.turnIndex,
         diceRoll: this.diceRoll,
@@ -321,7 +326,7 @@ const LudoEngine = (function() {
         tokens: JSON.parse(JSON.stringify(this.tokens)),
         winner: this.winner,
         spectators: this.spectators,
-        reactions: this.reactions,
+        reactions: cappedReactions,
         settings: this.settings,
         bounties: this.bounties,
         guaranteedSix: this.guaranteedSix,
